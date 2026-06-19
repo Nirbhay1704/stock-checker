@@ -22,6 +22,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+  <!-- Firebase Compat SDKs for global cloud synchronization -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   
   <!-- Stylesheets -->
   <link rel="stylesheet" href="style.css">
@@ -243,6 +246,17 @@
         <div class="info-section">
           <h3><i data-lucide="smartphone"></i> Use on Mobile</h3>
           <p>You can open this app on your phone by connecting to the same Wi-Fi and visiting the IP displayed in the terminal, or scanning the QR code printed by the server.</p>
+        </div>
+        
+        <!-- Firebase Cloud Sync Config -->
+        <div class="info-section" style="background-color: var(--accent-light); border-color: var(--accent);">
+          <h3><i data-lucide="cloud"></i> Global Cloud Sync (Firebase)</h3>
+          <p style="margin-bottom: 0.5rem; font-size: 0.8rem; line-height: 1.4;">Paste your Firebase Web App configuration JSON below to sync your stock lists from anywhere in the world:</p>
+          <textarea id="firebaseConfigInput" placeholder='{"apiKey": "...", "projectId": "...", ...}' style="width: 100%; height: 100px; padding: 0.5rem; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); font-family: monospace; font-size: 0.8rem; margin-bottom: 0.5rem; resize: vertical;"></textarea>
+          <div style="display: flex; gap: 0.5rem;">
+            <button id="saveFirebaseConfigBtn" class="btn btn-primary" style="font-size: 0.8rem; padding: 0.5rem 1rem;">Save Cloud Config</button>
+            <button id="clearFirebaseConfigBtn" class="btn btn-danger" style="font-size: 0.8rem; padding: 0.5rem 1rem; background-color: transparent; border-color: var(--danger); color: var(--danger);">Disable Cloud</button>
+          </div>
         </div>
         
         <!-- CSV Export / Import -->

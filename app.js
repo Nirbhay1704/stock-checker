@@ -9,7 +9,9 @@ let state = {
   searchQuery: '',
   filter: 'all', // availability filter
   typeFilter: 'all', // category filter
-  theme: 'dark'
+  theme: 'dark',
+  useFirebase: false,
+  db: null
 };
 
 // --- DOM Elements ---
@@ -55,6 +57,9 @@ const exportJsonFileBtn = document.getElementById('exportJsonFileBtn');
 const importFile = document.getElementById('importFile');
 const fileNameDisplay = document.getElementById('fileNameDisplay');
 const clearAllDataBtn = document.getElementById('clearAllDataBtn');
+const firebaseConfigInput = document.getElementById('firebaseConfigInput');
+const saveFirebaseConfigBtn = document.getElementById('saveFirebaseConfigBtn');
+const clearFirebaseConfigBtn = document.getElementById('clearFirebaseConfigBtn');
 const toastContainer = document.getElementById('toastContainer');
 
 // --- Helper Functions ---
@@ -173,27 +178,121 @@ function loadState() {
 }
 
 let syncTimeout = null;
+let firestoreUnsubscribe = null;
+
+// Initialize Firebase dynamically from config saved in localStorage
+function initFirebase() {
+  const configStr = localStorage.getItem('firebaseConfig');
+  if (configStr) {
+    try {
+      const config = JSON.parse(configStr);
+      if (firebase.apps.length === 0) {
+        firebase.initializeApp(config);
+      }
+      state.db = firebase.firestore();
+      state.useFirebase = true;
+      
+      // Update config input textarea if it exists
+      if (firebaseConfigInput) {
+        firebaseConfigInput.value = configStr;
+      }
+      
+      // Set up real-time sync listener
+      setupFirebaseListener();
+      console.log('Firebase initialized successfully.');
+    } catch (error) {
+      console.error('Error parsing/initializing Firebase config:', error);
+      showToast('Invalid Firebase configuration JSON.', 'error');
+      state.useFirebase = false;
+      state.db = null;
+      updateSyncStatus(false);
+    }
+  } else {
+    state.useFirebase = false;
+    state.db = null;
+    if (firebaseConfigInput) {
+      firebaseConfigInput.value = '';
+    }
+    if (firestoreUnsubscribe) {
+      firestoreUnsubscribe();
+      firestoreUnsubscribe = null;
+    }
+  }
+}
+
+// Real-time listener for Firestore document
+function setupFirebaseListener() {
+  if (firestoreUnsubscribe) {
+    firestoreUnsubscribe();
+  }
+  
+  if (!state.db) return;
+  
+  firestoreUnsubscribe = state.db.collection('inventory').doc('current_state')
+    .onSnapshot((doc) => {
+      // Avoid overwriting local changes while user is typing
+      if (syncTimeout) {
+        console.log('Skipping real-time sync: User has local modifications pending.');
+        return;
+      }
+      
+      if (doc.exists) {
+        const data = doc.data();
+        if (data && Array.isArray(data.stocks)) {
+          const serverStocksStr = JSON.stringify(data.stocks);
+          const localStocksStr = JSON.stringify(state.stocks);
+          const serverTypesStr = JSON.stringify(data.stockTypes || []);
+          const localTypesStr = JSON.stringify(state.stockTypes);
+          
+          if (serverStocksStr !== localStocksStr || serverTypesStr !== localTypesStr) {
+            state.stocks = data.stocks;
+            state.stockTypes = data.stockTypes || [];
+            
+            localStorage.setItem('stocks', JSON.stringify(state.stocks));
+            localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+            
+            populateTypeDropdowns();
+            updateDashboard();
+            renderStockList();
+            
+            updateSyncStatus(true);
+            showToast('Inventory synced with Cloud.', 'info');
+          }
+        }
+      }
+    }, (error) => {
+      console.error('Firestore listener error:', error);
+      updateSyncStatus(false);
+    });
+}
 
 // Silent background server sync
 async function autoSyncWithServer() {
   try {
     const payload = {
       stocks: state.stocks,
-      stockTypes: state.stockTypes
+      stockTypes: state.stockTypes,
+      updatedAt: new Date().toISOString()
     };
     
-    const response = await fetch('/api/data', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-    
-    if (response.ok) {
+    if (state.useFirebase) {
+      if (!state.db) return;
+      await state.db.collection('inventory').doc('current_state').set(payload);
       updateSyncStatus(true);
     } else {
-      updateSyncStatus(false);
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        updateSyncStatus(true);
+      } else {
+        updateSyncStatus(false);
+      }
     }
   } catch (err) {
     updateSyncStatus(false);
@@ -215,35 +314,64 @@ function saveState(stocksUpdated = true) {
   renderStockList();
 }
 
-// Fetch Inventory Data from Python Server
+// Fetch Inventory Data from Python Server or Firestore
 async function loadFromServer() {
-  try {
-    const response = await fetch('/api/data');
-    if (!response.ok) throw new Error('Server returned error status');
-    
-    const data = await response.json();
-    if (data && Array.isArray(data.stocks)) {
-      state.stocks = data.stocks;
-      if (Array.isArray(data.stockTypes)) {
-        state.stockTypes = data.stockTypes;
+  if (state.useFirebase) {
+    if (!state.db) return;
+    try {
+      const doc = await state.db.collection('inventory').doc('current_state').get();
+      if (doc.exists) {
+        const data = doc.data();
+        if (data && Array.isArray(data.stocks)) {
+          state.stocks = data.stocks;
+          state.stockTypes = data.stockTypes || [];
+          
+          localStorage.setItem('stocks', JSON.stringify(state.stocks));
+          localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+          
+          populateTypeDropdowns();
+          saveState(false); // Recalculate stats and render
+          updateSyncStatus(true);
+          showToast('Loaded latest synced data from cloud.', 'info');
+        }
+      } else {
+        // Initialize Firestore with local state
+        await autoSyncWithServer();
       }
-      
-      // Update local storage cache
-      localStorage.setItem('stocks', JSON.stringify(state.stocks));
-      localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
-      
-      populateTypeDropdowns();
-      saveState(false); // Recalculate stats and render
-      updateSyncStatus(true);
-      showToast('Loaded latest synced data from server.', 'info');
+    } catch (err) {
+      console.error('Error loading from Firestore:', err);
+      updateSyncStatus(false);
+      showToast('Failed to load from cloud.', 'error');
     }
-  } catch (err) {
-    console.warn('Could not connect to Python server. Running in Offline Mode.', err);
-    updateSyncStatus(false);
+  } else {
+    try {
+      const response = await fetch('/api/data');
+      if (!response.ok) throw new Error('Server returned error status');
+      
+      const data = await response.json();
+      if (data && Array.isArray(data.stocks)) {
+        state.stocks = data.stocks;
+        if (Array.isArray(data.stockTypes)) {
+          state.stockTypes = data.stockTypes;
+        }
+        
+        // Update local storage cache
+        localStorage.setItem('stocks', JSON.stringify(state.stocks));
+        localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+        
+        populateTypeDropdowns();
+        saveState(false); // Recalculate stats and render
+        updateSyncStatus(true);
+        showToast('Loaded latest synced data from server.', 'info');
+      }
+    } catch (err) {
+      console.warn('Could not connect to Python server. Running in Offline Mode.', err);
+      updateSyncStatus(false);
+    }
   }
 }
 
-// Save & Sync Inventory Data to Python Server
+// Save & Sync Inventory Data to Python Server or Firestore
 async function syncWithServer() {
   triggerHaptic(20);
   const syncText = syncBtn.querySelector('.btn-text');
@@ -260,25 +388,37 @@ async function syncWithServer() {
   try {
     const payload = {
       stocks: state.stocks,
-      stockTypes: state.stockTypes
+      stockTypes: state.stockTypes,
+      updatedAt: new Date().toISOString()
     };
     
-    const response = await fetch('/api/data', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-    
-    if (!response.ok) throw new Error('Post to server failed');
-    
-    updateSyncStatus(true);
-    showToast('Inventory saved & synced to all devices!');
+    if (state.useFirebase) {
+      if (!state.db) throw new Error('Firestore not initialized');
+      await state.db.collection('inventory').doc('current_state').set(payload);
+      updateSyncStatus(true);
+      showToast('Inventory saved & synced to global cloud!');
+    } else {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) throw new Error('Post to server failed');
+      
+      updateSyncStatus(true);
+      showToast('Inventory saved & synced to all devices!');
+    }
   } catch (err) {
     console.error('Server sync error:', err);
     updateSyncStatus(false);
-    showToast('Failed to save to computer server. Saved locally.', 'error');
+    if (state.useFirebase) {
+      showToast('Failed to sync with global cloud. Saved locally.', 'error');
+    } else {
+      showToast('Failed to save to computer server. Saved locally.', 'error');
+    }
   } finally {
     // End spinning animation
     if (activeIcon) activeIcon.classList.remove('spin');
@@ -295,7 +435,11 @@ function updateSyncStatus(isSynced) {
   if (isSynced) {
     syncBtn.classList.remove('btn-secondary');
     syncBtn.classList.add('btn-primary');
-    syncBtn.title = 'Saved & Synced with Computer';
+    if (state.useFirebase) {
+      syncBtn.title = 'Saved & Synced with Global Cloud';
+    } else {
+      syncBtn.title = 'Saved & Synced with Computer';
+    }
     if (connectedIcon) connectedIcon.classList.remove('hidden');
     if (disconnectedIcon) disconnectedIcon.classList.add('hidden');
   } else {
@@ -1088,10 +1232,64 @@ clearAllDataBtn.addEventListener('click', () => {
   }
 });
 
+// Firebase configuration management
+saveFirebaseConfigBtn.addEventListener('click', async () => {
+  triggerHaptic(20);
+  const configText = firebaseConfigInput.value.trim();
+  if (!configText) {
+    showToast('Please enter a valid Firebase configuration JSON.', 'error');
+    return;
+  }
+  
+  try {
+    // Validate JSON structure
+    const config = JSON.parse(configText);
+    if (!config.apiKey || !config.projectId) {
+      throw new Error('Config missing apiKey or projectId');
+    }
+    
+    // Save to local storage
+    localStorage.setItem('firebaseConfig', configText);
+    showToast('Firebase configuration saved!');
+    
+    // Initialize
+    initFirebase();
+    
+    // Immediate sync
+    await loadFromServer();
+    
+    // Close backup modal
+    backupModal.classList.add('hidden');
+    backupModal.setAttribute('aria-hidden', 'true');
+  } catch (err) {
+    console.error('Invalid configuration structure:', err);
+    showToast('Invalid JSON structure or missing credentials.', 'error');
+  }
+});
+
+clearFirebaseConfigBtn.addEventListener('click', () => {
+  triggerHaptic(20);
+  if (firestoreUnsubscribe) {
+    firestoreUnsubscribe();
+    firestoreUnsubscribe = null;
+  }
+  localStorage.removeItem('firebaseConfig');
+  state.useFirebase = false;
+  state.db = null;
+  firebaseConfigInput.value = '';
+  updateSyncStatus(false);
+  showToast('Firebase Cloud Sync disabled. Switched back to local mode.', 'info');
+  
+  // Close backup modal
+  backupModal.classList.add('hidden');
+  backupModal.setAttribute('aria-hidden', 'true');
+});
+
 // --- App Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
   loadState(); // load local cache first
+  initFirebase(); // initialize Firebase if config is present
   saveState(false); // render local cache immediately
   
   // Fetch latest from server
