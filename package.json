@@ -1,0 +1,11 @@
+{
+  "name": "stock-checker",
+  "version": "1.0.0",
+  "description": "Premium, mobile-first Stock Checker with 3 columns (stockname, full boxes, half boxes) and LocalStorage persistence.",
+  "main": "server.js",
+  "scripts": {
+    "start": "python3 server.py"
+  },
+  "author": "Antigravity",
+  "license": "ISC"
+}

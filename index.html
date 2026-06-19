@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Stock Checker Pro</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="A premium, mobile-first Stock Checker to track full and half boxes, easily update daily inventory, and export/import data.">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="StockChecker">
+  
+  <!-- PWA Manifest & Favicon -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  
+  <!-- Google Fonts & Lucide Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/lucide/dist/umd/lucide.min.js"></script>
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="header-logo">
+        <div class="logo-icon">
+          <i data-lucide="package-check"></i>
+        </div>
+        <div class="logo-text">
+          <h1>StockChecker</h1>
+          <span class="logo-subtitle">Daily Inventory Tracker</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="icon-btn" title="Toggle Theme" aria-label="Toggle Light/Dark Theme">
+          <i data-lucide="moon" class="theme-icon-dark"></i>
+          <i data-lucide="sun" class="theme-icon-light hidden"></i>
+        </button>
+        <button id="manageTypesBtn" class="btn btn-secondary btn-icon-only-mobile" title="Manage Stock Types">
+          <i data-lucide="tag"></i> <span class="btn-text">Types</span>
+        </button>
+        <button id="syncBtn" class="btn btn-primary btn-icon-only-mobile" title="Save & Sync with Computer">
+          <i data-lucide="cloud-upload" class="sync-icon-connected"></i>
+          <i data-lucide="cloud-off" class="sync-icon-disconnected hidden"></i>
+          <span class="btn-text">Save & Sync</span>
+        </button>
+        <button id="backupRestoreBtn" class="btn btn-secondary btn-icon-only-mobile" title="Backup & Restore">
+          <i data-lucide="database"></i> <span class="btn-text">Backup</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Dashboard Summary Cards -->
+    <section class="dashboard-stats" aria-label="Inventory Summary">
+      <div class="stat-card">
+        <div class="stat-icon bg-indigo">
+          <i data-lucide="layers"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total Items</span>
+          <span id="totalItems" class="stat-val">0</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-emerald">
+          <i data-lucide="package"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Full Boxes</span>
+          <span id="totalFullBoxes" class="stat-val">0</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon bg-amber">
+          <i data-lucide="package-open"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Half Boxes</span>
+          <span id="totalHalfBoxes" class="stat-val">0</span>
+        </div>
+      </div>
+      <div class="stat-card card-highlight">
+        <div class="stat-icon bg-violet">
+          <i data-lucide="calculator"></i>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total Equiv.</span>
+          <span id="totalEquivBoxes" class="stat-val">0.0</span>
+          <span class="stat-unit">Boxes</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Toolbar / Search and Filters -->
+    <section class="toolbar-section">
+      <div class="search-bar">
+        <i data-lucide="search" class="search-icon"></i>
+        <input type="text" id="searchInput" placeholder="Search stock by name..." aria-label="Search stock items">
+        <button id="clearSearchBtn" class="clear-search-btn hidden" aria-label="Clear search">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="filter-actions">
+        <div class="select-wrapper">
+          <select id="typeFilterSelect" aria-label="Filter items by stock type">
+            <option value="all">All Types</option>
+          </select>
+          <i data-lucide="chevron-down" class="select-arrow"></i>
+        </div>
+        <div class="select-wrapper">
+          <select id="filterSelect" aria-label="Filter items by availability">
+            <option value="all">All Items</option>
+            <option value="inStock">In Stock Only</option>
+            <option value="outOfStock">Out of Stock</option>
+          </select>
+          <i data-lucide="chevron-down" class="select-arrow"></i>
+        </div>
+        <button id="addStockBtn" class="btn btn-primary" aria-label="Add new stock item">
+          <i data-lucide="plus"></i> <span>Add Stock</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Main Stock Listing -->
+    <main class="stock-list-container">
+      
+      <!-- Desktop Table Header (Hidden on Mobile) -->
+      <div class="desktop-table-header">
+        <div class="col-name">Stock Name</div>
+        <div class="col-full">Full Boxes</div>
+        <div class="col-half">Half Boxes</div>
+        <div class="col-total">Total Equiv.</div>
+        <div class="col-actions">Actions</div>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state hidden">
+        <div class="empty-icon">
+          <i data-lucide="clipboard-list"></i>
+        </div>
+        <h3>No Stock Items Found</h3>
+        <p>Start by adding some stock items to track your daily inventory.</p>
+        <button id="emptyStateAddBtn" class="btn btn-primary">
+          <i data-lucide="plus"></i> Add Your First Stock
+        </button>
+      </div>
+
+      <!-- Stock Items List Grid (Container for cards/rows) -->
+      <div id="stockItemsList" class="stock-items-list" role="list">
+        <!-- Rendered dynamically via JavaScript -->
+      </div>
+    </main>
+
+    <!-- Floating Actions for Mobile (Quick Add) -->
+    <div class="fab-container">
+      <button id="mobileFabAddBtn" class="fab-btn" aria-label="Add stock item">
+        <i data-lucide="plus"></i>
+      </button>
+    </div>
+    
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>&copy; 2026 StockChecker Pro. All data saved locally on this device.</p>
+    </footer>
+  </div>
+
+  <!-- ADD / EDIT MODAL -->
+  <div id="stockModal" class="modal-overlay hidden" aria-hidden="true" role="dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add Stock Item</h2>
+        <button class="modal-close-btn" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <form id="stockForm" novalidate>
+        <input type="hidden" id="stockId">
+        <div class="form-group">
+          <label for="stockNameInput">Stock Name</label>
+          <input type="text" id="stockNameInput" placeholder="e.g. Coca Cola 330ml" required autocomplete="off">
+          <span class="error-msg" id="nameError">Stock name is required</span>
+        </div>
+        
+        <div class="form-group">
+          <label for="stockTypeInput">Stock Type</label>
+          <div class="select-wrapper">
+            <select id="stockTypeInput" required>
+              <!-- Populated dynamically via JS -->
+            </select>
+            <i data-lucide="chevron-down" class="select-arrow"></i>
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label for="stockFullInput">Full Boxes</label>
+            <div class="number-input-stepper">
+              <button type="button" class="stepper-btn minus" data-target="stockFullInput">-</button>
+              <input type="number" id="stockFullInput" min="0" value="0" step="1">
+              <button type="button" class="stepper-btn plus" data-target="stockFullInput">+</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="stockHalfInput">Half Boxes</label>
+            <div class="number-input-stepper">
+              <button type="button" class="stepper-btn minus" data-target="stockHalfInput">-</button>
+              <input type="number" id="stockHalfInput" min="0" value="0" step="1">
+              <button type="button" class="stepper-btn plus" data-target="stockHalfInput">+</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-close-btn">Cancel</button>
+          <button type="submit" id="saveStockBtn" class="btn btn-primary">Save Stock</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- BACKUP & DATA MANAGEMENT MODAL -->
+  <div id="backupModal" class="modal-overlay hidden" aria-hidden="true" role="dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Data Management</h2>
+        <button class="modal-close-btn" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Backup and sync your stock checker data to edit across devices like your mobile phone.</p>
+        
+        <!-- Quick Share QR Code info -->
+        <div class="info-section">
+          <h3><i data-lucide="smartphone"></i> Use on Mobile</h3>
+          <p>You can open this app on your phone by connecting to the same Wi-Fi and visiting the IP displayed in the terminal, or scanning the QR code printed by the server.</p>
+        </div>
+        
+        <!-- CSV Export / Import -->
+        <div class="action-grid">
+          <button id="exportCsvBtn" class="btn btn-outline">
+            <i data-lucide="file-spreadsheet" class="color-emerald"></i>
+            <span>Export CSV (Excel)</span>
+          </button>
+          <button id="exportJsonFileBtn" class="btn btn-outline">
+            <i data-lucide="download" class="color-indigo"></i>
+            <span>Export Backup File</span>
+          </button>
+        </div>
+
+        <div class="divider"><span>OR IMPORT</span></div>
+
+        <!-- Import File -->
+        <div class="form-group">
+          <label for="importFile">Import Backup File (.json or .csv)</label>
+          <div class="file-upload-wrapper">
+            <input type="file" id="importFile" accept=".json,.csv" class="file-input">
+            <div class="file-upload-trigger">
+              <i data-lucide="upload-cloud"></i>
+              <span>Choose JSON or CSV file</span>
+            </div>
+          </div>
+          <span class="file-name-display" id="fileNameDisplay">No file selected</span>
+        </div>
+
+        <!-- Data Reset -->
+        <div class="danger-zone">
+          <h3>Danger Zone</h3>
+          <p>Delete all stock items. This action cannot be undone.</p>
+          <button id="clearAllDataBtn" class="btn btn-danger">
+            <i data-lucide="trash-2"></i> Clear All Stock Data
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary modal-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MANAGE STOCK TYPES MODAL -->
+  <div id="typesModal" class="modal-overlay hidden" aria-hidden="true" role="dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Manage Stock Types</h2>
+        <button class="modal-close-btn" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Create or delete stock categories to organize your inventory.</p>
+        
+        <!-- Add stock type form -->
+        <form id="addTypeForm" style="display: flex; align-items: flex-end; gap: 0.75rem; margin-bottom: 1rem;">
+          <div class="form-group" style="margin-bottom: 0; flex: 1;">
+            <label for="newTypeNameInput">New Stock Type</label>
+            <input type="text" id="newTypeNameInput" placeholder="e.g. Beverages" required autocomplete="off" style="width: 100%; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); font-family: var(--font-sans);">
+          </div>
+          <button type="submit" class="btn btn-primary" style="height: 48px; padding: 0 1.25rem;">Add</button>
+        </form>
+        
+        <!-- Types List -->
+        <div class="form-group">
+          <label>Existing Stock Types</label>
+          <div id="typesListContainer" class="types-list-container">
+            <!-- Rendered dynamically in JS -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary modal-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Service Worker Registration & App JavaScript -->
+  <script src="app.js"></script>
+</body>
+</html>
