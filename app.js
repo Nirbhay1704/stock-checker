@@ -251,6 +251,54 @@ function initFirebase() {
   }
 }
 
+// Merge local and remote stock states based on updatedAt timestamps
+function mergeInventory(remoteStocks, remoteTypes, remoteUpdatedAt) {
+  const remoteTime = new Date(remoteUpdatedAt || 0).getTime();
+  const mergedStocks = [];
+  
+  // 1. Process items that exist locally
+  state.stocks.forEach(localItem => {
+    const remoteItem = remoteStocks.find(item => item.id === localItem.id);
+    const localTime = new Date(localItem.updatedAt || 0).getTime();
+    
+    if (remoteItem) {
+      // Item exists in both. Take the newer one.
+      const remoteItemTime = new Date(remoteItem.updatedAt || 0).getTime();
+      if (remoteItemTime > localTime) {
+        mergedStocks.push(remoteItem);
+      } else {
+        mergedStocks.push(localItem);
+      }
+    } else {
+      // Item exists locally but is missing in the remote list.
+      // Was it deleted remotely, or was it created locally while offline?
+      if (localTime > remoteTime) {
+        // It was modified locally *after* the remote state was last saved. Keep it!
+        mergedStocks.push(localItem);
+      } else {
+        // It was modified locally *before* the remote state was saved, but is missing remotely.
+        // This means it was deleted remotely. Skip it (delete it locally).
+      }
+    }
+  });
+  
+  // 2. Process items that exist remotely but not locally (created remotely)
+  remoteStocks.forEach(remoteItem => {
+    const existsLocally = state.stocks.some(item => item.id === remoteItem.id);
+    if (!existsLocally) {
+      mergedStocks.push(remoteItem);
+    }
+  });
+  
+  // Merge categories (stock types)
+  const mergedTypes = Array.from(new Set([...state.stockTypes, ...remoteTypes]));
+  
+  return {
+    stocks: mergedStocks,
+    stockTypes: mergedTypes
+  };
+}
+
 // Real-time listener for Firestore document
 function setupFirebaseListener() {
   if (firestoreUnsubscribe) {
@@ -261,23 +309,20 @@ function setupFirebaseListener() {
   
   firestoreUnsubscribe = state.db.collection('inventory').doc('current_state')
     .onSnapshot((doc) => {
-      // Avoid overwriting local changes while user is typing
-      if (syncTimeout) {
-        console.log('Skipping real-time sync: User has local modifications pending.');
-        return;
-      }
-      
       if (doc.exists) {
         const data = doc.data();
         if (data && Array.isArray(data.stocks)) {
-          const serverStocksStr = JSON.stringify(data.stocks);
-          const localStocksStr = JSON.stringify(state.stocks);
-          const serverTypesStr = JSON.stringify(data.stockTypes || []);
-          const localTypesStr = JSON.stringify(state.stockTypes);
+          // Merge remote updates with local state instead of doing a blind overwrite
+          const merged = mergeInventory(data.stocks, data.stockTypes || [], data.updatedAt);
           
-          if (serverStocksStr !== localStocksStr || serverTypesStr !== localTypesStr) {
-            state.stocks = data.stocks;
-            state.stockTypes = data.stockTypes || [];
+          const localStocksStr = JSON.stringify(state.stocks);
+          const mergedStocksStr = JSON.stringify(merged.stocks);
+          const localTypesStr = JSON.stringify(state.stockTypes);
+          const mergedTypesStr = JSON.stringify(merged.stockTypes);
+          
+          if (localStocksStr !== mergedStocksStr || localTypesStr !== mergedTypesStr) {
+            state.stocks = merged.stocks;
+            state.stockTypes = merged.stockTypes;
             
             localStorage.setItem('stocks', JSON.stringify(state.stocks));
             localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
@@ -1353,6 +1398,19 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Fetch latest from server
   loadFromServer();
+  
+  // Re-sync when app wakes up or gains focus (mobile browsers sleep tabs in background)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      console.log('App visible. Loading latest from server...');
+      loadFromServer();
+    }
+  });
+  
+  window.addEventListener('focus', () => {
+    console.log('App focused. Loading latest from server...');
+    loadFromServer();
+  });
   
   // Register Service Worker for PWA / offline support
   if ('serviceWorker' in navigator) {
