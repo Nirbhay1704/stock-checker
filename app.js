@@ -1094,19 +1094,37 @@ function generateLowStockReport() {
   }
   
   copyLowStockBtn.disabled = false;
-  lowStockListContainer.innerHTML = lowStockItems.map(item => {
+  
+  let currentGroup = '';
+  let htmlContent = '';
+  
+  lowStockItems.forEach(item => {
     const equiv = item.fullBoxes + (item.halfBoxes * 0.5);
     const typeLabel = item.type ? item.type : 'Uncategorized';
-    return `
+    
+    if (typeLabel !== currentGroup) {
+      currentGroup = typeLabel;
+      htmlContent += `
+        <div class="low-stock-category-header" style="background-color: var(--bg-tertiary); padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 700; color: var(--primary); border-bottom: 1px solid var(--border-color); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem;">
+          <i data-lucide="folder" style="width: 12px; height: 12px;"></i> ${escapeHtml(currentGroup)}
+        </div>
+      `;
+    }
+    
+    htmlContent += `
       <div class="low-stock-item">
         <div class="low-stock-item-info">
           <span class="low-stock-item-name">${escapeHtml(item.name)}</span>
-          <span class="low-stock-item-type">${escapeHtml(typeLabel)}</span>
         </div>
         <span class="low-stock-item-qty">${equiv.toFixed(1)} boxes</span>
       </div>
     `;
-  }).join('');
+  });
+  
+  lowStockListContainer.innerHTML = htmlContent;
+  
+  // Render Lucide icons for the folder icons in category headers
+  lucide.createIcons();
 }
 
 // Add Stock Type form submit
