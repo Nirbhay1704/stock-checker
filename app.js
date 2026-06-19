@@ -1034,7 +1034,14 @@ copyLowStockBtn.addEventListener('click', () => {
     return equiv <= 1;
   });
   
-  lowStockItems.sort((a, b) => a.name.localeCompare(b.name));
+  // Sort by Stock Type first, then by Name
+  lowStockItems.sort((a, b) => {
+    const typeA = a.type || 'Uncategorized';
+    const typeB = b.type || 'Uncategorized';
+    const typeCompare = typeA.localeCompare(typeB);
+    if (typeCompare !== 0) return typeCompare;
+    return a.name.localeCompare(b.name);
+  });
   
   if (lowStockItems.length === 0) return;
   
@@ -1042,10 +1049,17 @@ copyLowStockBtn.addEventListener('click', () => {
   let reportText = `⚠️ LOW STOCK REPORT (${dateStr})\n`;
   reportText += `------------------------------------\n`;
   
+  // Group by category in the text report for cleaner readability
+  let currentGroup = '';
   lowStockItems.forEach(item => {
     const equiv = item.fullBoxes + (item.halfBoxes * 0.5);
-    const typeLabel = item.type ? `[${item.type}]` : '';
-    reportText += `• ${item.name} ${typeLabel}: ${equiv.toFixed(1)} boxes\n`;
+    const typeLabel = item.type ? item.type : 'Uncategorized';
+    
+    if (typeLabel !== currentGroup) {
+      currentGroup = typeLabel;
+      reportText += `\n📁 ${currentGroup.toUpperCase()}\n`;
+    }
+    reportText += `• ${item.name}: ${equiv.toFixed(1)} boxes\n`;
   });
   
   navigator.clipboard.writeText(reportText)
@@ -1064,7 +1078,14 @@ function generateLowStockReport() {
     return equiv <= 1;
   });
   
-  lowStockItems.sort((a, b) => a.name.localeCompare(b.name));
+  // Sort by Stock Type first, then by Name
+  lowStockItems.sort((a, b) => {
+    const typeA = a.type || 'Uncategorized';
+    const typeB = b.type || 'Uncategorized';
+    const typeCompare = typeA.localeCompare(typeB);
+    if (typeCompare !== 0) return typeCompare;
+    return a.name.localeCompare(b.name);
+  });
   
   if (lowStockItems.length === 0) {
     lowStockListContainer.innerHTML = '<p style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-style: italic;">No low stock items found! All items have more than 1 box.</p>';
