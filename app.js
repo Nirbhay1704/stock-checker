@@ -796,6 +796,18 @@ function updateStockCount(id, field, change) {
   }
 }
 
+function deleteStockItem(id) {
+  const stockIndex = state.stocks.findIndex(item => item.id === id);
+  if (stockIndex !== -1) {
+    const item = state.stocks[stockIndex];
+    if (confirm(`Are you sure you want to delete "${item.name}"?`)) {
+      state.stocks.splice(stockIndex, 1);
+      saveState();
+      showToast(`Deleted "${item.name}"`);
+    }
+  }
+}
+
 // --- Modal Handling ---
 
 // Add/Edit Stock Modal
