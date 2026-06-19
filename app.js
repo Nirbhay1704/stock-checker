@@ -19,6 +19,10 @@ const themeToggleBtn = document.getElementById('themeToggleBtn');
 const manageTypesBtn = document.getElementById('manageTypesBtn');
 const syncBtn = document.getElementById('syncBtn');
 const backupRestoreBtn = document.getElementById('backupRestoreBtn');
+const lessStockBtn = document.getElementById('lessStockBtn');
+const lowStockModal = document.getElementById('lowStockModal');
+const lowStockListContainer = document.getElementById('lowStockListContainer');
+const copyLowStockBtn = document.getElementById('copyLowStockBtn');
 const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 const filterSelect = document.getElementById('filterSelect');
@@ -1013,6 +1017,76 @@ manageTypesBtn.addEventListener('click', () => {
   typesModal.classList.remove('hidden');
   typesModal.setAttribute('aria-hidden', 'false');
 });
+
+// Open Low Stock Modal
+lessStockBtn.addEventListener('click', () => {
+  triggerHaptic(20);
+  generateLowStockReport();
+  lowStockModal.classList.remove('hidden');
+  lowStockModal.setAttribute('aria-hidden', 'false');
+});
+
+// Copy Low Stock Report
+copyLowStockBtn.addEventListener('click', () => {
+  triggerHaptic(20);
+  const lowStockItems = state.stocks.filter(item => {
+    const equiv = item.fullBoxes + (item.halfBoxes * 0.5);
+    return equiv <= 1;
+  });
+  
+  lowStockItems.sort((a, b) => a.name.localeCompare(b.name));
+  
+  if (lowStockItems.length === 0) return;
+  
+  const dateStr = new Date().toLocaleDateString();
+  let reportText = `⚠️ LOW STOCK REPORT (${dateStr})\n`;
+  reportText += `------------------------------------\n`;
+  
+  lowStockItems.forEach(item => {
+    const equiv = item.fullBoxes + (item.halfBoxes * 0.5);
+    const typeLabel = item.type ? `[${item.type}]` : '';
+    reportText += `• ${item.name} ${typeLabel}: ${equiv.toFixed(1)} boxes\n`;
+  });
+  
+  navigator.clipboard.writeText(reportText)
+    .then(() => {
+      showToast('Low stock report copied to clipboard!');
+    })
+    .catch(err => {
+      console.error('Failed to copy text:', err);
+      showToast('Failed to copy report.', 'error');
+    });
+});
+
+function generateLowStockReport() {
+  const lowStockItems = state.stocks.filter(item => {
+    const equiv = item.fullBoxes + (item.halfBoxes * 0.5);
+    return equiv <= 1;
+  });
+  
+  lowStockItems.sort((a, b) => a.name.localeCompare(b.name));
+  
+  if (lowStockItems.length === 0) {
+    lowStockListContainer.innerHTML = '<p style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-style: italic;">No low stock items found! All items have more than 1 box.</p>';
+    copyLowStockBtn.disabled = true;
+    return;
+  }
+  
+  copyLowStockBtn.disabled = false;
+  lowStockListContainer.innerHTML = lowStockItems.map(item => {
+    const equiv = item.fullBoxes + (item.halfBoxes * 0.5);
+    const typeLabel = item.type ? item.type : 'Uncategorized';
+    return `
+      <div class="low-stock-item">
+        <div class="low-stock-item-info">
+          <span class="low-stock-item-name">${escapeHtml(item.name)}</span>
+          <span class="low-stock-item-type">${escapeHtml(typeLabel)}</span>
+        </div>
+        <span class="low-stock-item-qty">${equiv.toFixed(1)} boxes</span>
+      </div>
+    `;
+  }).join('');
+}
 
 // Add Stock Type form submit
 addTypeForm.addEventListener('submit', (e) => {

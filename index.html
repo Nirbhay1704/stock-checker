@@ -51,6 +51,9 @@
         <button id="manageTypesBtn" class="btn btn-secondary btn-icon-only-mobile" title="Manage Stock Types">
           <i data-lucide="tag"></i> <span class="btn-text">Types</span>
         </button>
+        <button id="lessStockBtn" class="btn btn-secondary btn-icon-only-mobile" title="Low Stock Report">
+          <i data-lucide="alert-triangle"></i> <span class="btn-text">Less Stock</span>
+        </button>
         <button id="syncBtn" class="btn btn-primary btn-icon-only-mobile" title="Save & Sync with Computer">
           <i data-lucide="cloud-upload" class="sync-icon-connected"></i>
           <i data-lucide="cloud-off" class="sync-icon-disconnected hidden"></i>
@@ -336,10 +339,38 @@
     </div>
   </div>
 
+  <!-- LOW STOCK REPORT MODAL -->
+  <div id="lowStockModal" class="modal-overlay hidden" aria-hidden="true" role="dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Low Stock Report</h2>
+        <button class="modal-close-btn" aria-label="Close modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Items with less than or equal to 1.0 box remaining:</p>
+        
+        <div id="lowStockListContainer" class="low-stock-list-container" style="max-height: 250px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 8px; background-color: var(--bg-primary);">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button id="copyLowStockBtn" class="btn btn-primary" style="font-size: 0.9rem;">
+            <i data-lucide="copy" style="width:16px; height:16px;"></i> Copy Report
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary modal-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container -->
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Service Worker Registration & App JavaScript -->
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
