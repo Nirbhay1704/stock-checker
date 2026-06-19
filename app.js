@@ -182,6 +182,12 @@ let firestoreUnsubscribe = null;
 
 // Initialize Firebase dynamically from config saved in localStorage
 function initFirebase() {
+  if (typeof firebase === 'undefined') {
+    console.warn('Firebase library not loaded (possibly offline or blocked CDN).');
+    state.useFirebase = false;
+    state.db = null;
+    return;
+  }
   const configStr = localStorage.getItem('firebaseConfig');
   if (configStr) {
     try {
@@ -344,6 +350,14 @@ async function loadFromServer() {
       showToast('Failed to load from cloud.', 'error');
     }
   } else {
+    // Check if we are running on a static live server (GitHub Pages)
+    const isStaticHost = window.location.hostname.endsWith('github.io');
+    if (isStaticHost) {
+      console.log('Running on GitHub Pages without Firebase config. Using local storage fallback.');
+      updateSyncStatus(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/data');
       if (!response.ok) throw new Error('Server returned error status');
@@ -398,6 +412,14 @@ async function syncWithServer() {
       updateSyncStatus(true);
       showToast('Inventory saved & synced to global cloud!');
     } else {
+      // Check if we are running on a static live server (GitHub Pages)
+      const isStaticHost = window.location.hostname.endsWith('github.io');
+      if (isStaticHost) {
+        showToast('Please paste your Firebase Config in the Backup settings to sync your phone.', 'info');
+        updateSyncStatus(false);
+        return;
+      }
+
       const response = await fetch('/api/data', {
         method: 'POST',
         headers: {
@@ -415,7 +437,7 @@ async function syncWithServer() {
     console.error('Server sync error:', err);
     updateSyncStatus(false);
     if (state.useFirebase) {
-      showToast('Failed to sync with global cloud. Saved locally.', 'error');
+      showToast(`Cloud Sync Error: ${err.message || 'Check database settings'}`, 'error');
     } else {
       showToast('Failed to save to computer server. Saved locally.', 'error');
     }
