@@ -180,7 +180,17 @@ function loadState() {
 let syncTimeout = null;
 let firestoreUnsubscribe = null;
 
-// Initialize Firebase dynamically from config saved in localStorage
+const DEFAULT_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDoFIMrql2BGlAWlwWvgZiu6NKVsTfRvEk",
+  authDomain: "stock-checker-57c31.firebaseapp.com",
+  projectId: "stock-checker-57c31",
+  storageBucket: "stock-checker-57c31.firebasestorage.app",
+  messagingSenderId: "468866240777",
+  appId: "1:468866240777:web:33ad75fec61551d9d703d8",
+  measurementId: "G-43RT8EZ1ER"
+};
+
+// Initialize Firebase dynamically from config saved in localStorage or default fallback
 function initFirebase() {
   if (typeof firebase === 'undefined') {
     console.warn('Firebase library not loaded (possibly offline or blocked CDN).');
@@ -188,19 +198,34 @@ function initFirebase() {
     state.db = null;
     return;
   }
-  const configStr = localStorage.getItem('firebaseConfig');
+  
+  let configStr = localStorage.getItem('firebaseConfig');
+  let config = null;
+  
   if (configStr) {
     try {
-      const config = JSON.parse(configStr);
+      config = JSON.parse(configStr);
+    } catch (e) {
+      console.error('Error parsing saved firebaseConfig:', e);
+    }
+  }
+  
+  // Use default fallback if no config exists in localStorage
+  if (!config) {
+    config = DEFAULT_FIREBASE_CONFIG;
+  }
+  
+  if (config && config.apiKey && config.projectId) {
+    try {
       if (firebase.apps.length === 0) {
         firebase.initializeApp(config);
       }
       state.db = firebase.firestore();
       state.useFirebase = true;
       
-      // Update config input textarea if it exists
+      // Update config input textarea if it exists and localStorage has custom config
       if (firebaseConfigInput) {
-        firebaseConfigInput.value = configStr;
+        firebaseConfigInput.value = localStorage.getItem('firebaseConfig') || '';
       }
       
       // Set up real-time sync listener
