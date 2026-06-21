@@ -505,7 +505,7 @@ h1, h2, h3, h4 {
 /* Desktop Table Headers */
 .desktop-table-header {
   display: grid;
-  grid-template-columns: 2fr 1.2fr 1.2fr 1fr 1fr;
+  grid-template-columns: 45px 2fr 1.2fr 1.2fr 1fr 1fr;
   padding: 1rem 1.5rem;
   background-color: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-color);
@@ -565,7 +565,7 @@ h1, h2, h3, h4 {
 /* Stock Item Row (Adapts to Card on mobile) */
 .stock-item {
   display: grid;
-  grid-template-columns: 2fr 1.2fr 1.2fr 1fr 1fr;
+  grid-template-columns: 45px 2fr 1.2fr 1.2fr 1fr 1fr;
   align-items: center;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
@@ -578,6 +578,74 @@ h1, h2, h3, h4 {
 
 .stock-item:hover {
   background-color: var(--glass-bg);
+}
+
+/* Checkbox Column & Custom Checkbox */
+.col-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.custom-checkbox {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.custom-checkbox:checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.custom-checkbox:checked::after {
+  content: "";
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  margin-bottom: 2px;
+}
+
+.custom-checkbox:focus-visible {
+  box-shadow: 0 0 0 2px var(--border-focus);
+}
+
+/* Checked Stock Item Styling */
+.stock-item.checked {
+  background-color: rgba(99, 102, 241, 0.04);
+}
+
+.stock-item.checked .stock-name {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.stock-item.checked .stock-counter,
+.stock-item.checked .stock-equiv-display,
+.stock-item.checked .stock-badge-active,
+.stock-item.checked .stock-badge-low,
+.stock-item.checked .stock-badge-type {
+  opacity: 0.5;
+}
+
+/* Stock Card Content Wrapper (ignored on desktop grid) */
+.stock-card-content {
+  display: contents;
 }
 
 /* Stock Name Column Styling */
@@ -1266,8 +1334,8 @@ h1, h2, h3, h4 {
 
   .stock-item {
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: flex-start;
     background-color: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 14px;
@@ -1278,6 +1346,20 @@ h1, h2, h3, h4 {
 
   .stock-item:hover {
     background-color: var(--bg-secondary); /* Disable desktop row hover effect */
+  }
+
+  .col-check {
+    width: auto;
+    height: auto;
+    padding-top: 3px;
+  }
+
+  .stock-card-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 0.75rem;
+    min-width: 0;
   }
 
   /* Grid alignment of columns in mobile card */

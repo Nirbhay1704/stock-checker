@@ -167,10 +167,10 @@ function loadState() {
     } else {
       // Load sample data if empty
       state.stocks = [
-        { id: '1', name: 'Premium Lager (24x330ml)', type: '', fullBoxes: 5, halfBoxes: 2, updatedAt: new Date().toISOString() },
-        { id: '2', name: 'Cola Zero (24x330ml)', type: '', fullBoxes: 12, halfBoxes: 1, updatedAt: new Date().toISOString() },
-        { id: '3', name: 'Energy Soda (12x250ml)', type: '', fullBoxes: 0, halfBoxes: 3, updatedAt: new Date().toISOString() },
-        { id: '4', name: 'Orange Juice Box (10x1L)', type: '', fullBoxes: 0, halfBoxes: 0, updatedAt: new Date().toISOString() }
+        { id: '1', name: 'Premium Lager (24x330ml)', type: '', fullBoxes: 5, halfBoxes: 2, updatedAt: new Date().toISOString(), checked: false },
+        { id: '2', name: 'Cola Zero (24x330ml)', type: '', fullBoxes: 12, halfBoxes: 1, updatedAt: new Date().toISOString(), checked: false },
+        { id: '3', name: 'Energy Soda (12x250ml)', type: '', fullBoxes: 0, halfBoxes: 3, updatedAt: new Date().toISOString(), checked: false },
+        { id: '4', name: 'Orange Juice Box (10x1L)', type: '', fullBoxes: 0, halfBoxes: 0, updatedAt: new Date().toISOString(), checked: false }
       ];
       localStorage.setItem('stocks', JSON.stringify(state.stocks));
     }
@@ -855,6 +855,13 @@ function renderStockList() {
   } else {
     emptyState.classList.add('hidden');
     
+    // Update select all checkbox state in header
+    const selectAllStock = document.getElementById('selectAllStock');
+    if (selectAllStock) {
+      const allChecked = filtered.length > 0 && filtered.every(item => item.checked);
+      selectAllStock.checked = allChecked;
+    }
+
     // Efficiently render list items
     stockItemsList.innerHTML = filtered.map(item => {
       const equiv = (item.fullBoxes + item.halfBoxes * 0.5).toFixed(1);
@@ -863,62 +870,69 @@ function renderStockList() {
       const showTypeBadge = state.stockTypes.length > 0 && itemType !== '';
       
       return `
-        <div class="stock-item" data-id="${item.id}" role="listitem">
+        <div class="stock-item ${item.checked ? 'checked' : ''}" data-id="${item.id}" role="listitem">
           
-          <!-- Column 1: Stock Name and badges -->
-          <div class="stock-name-wrapper">
-            <span class="stock-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
-            <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.2rem; flex-wrap: wrap;">
-              ${isInStock 
-                ? `<span class="stock-badge-active">In Stock</span>` 
-                : `<span class="stock-badge-low">Out of Stock</span>`
-              }
-              ${showTypeBadge 
-                ? `<span class="stock-badge-type">${escapeHtml(itemType)}</span>` 
-                : ''
-              }
-            </div>
+          <!-- Checkbox Column -->
+          <div class="col-check">
+            <input type="checkbox" class="custom-checkbox stock-checkbox" data-id="${item.id}" ${item.checked ? 'checked' : ''} aria-label="Check stock item">
           </div>
           
-          <!-- Desktop Counter wrappers (display: contents on desktop) -->
-          <div class="stock-item-row-mobile-counters">
-            
-            <!-- Column 2: Full Boxes -->
-            <div class="stock-item-counter-group">
-              <span class="stock-item-counter-group-label">Full Boxes</span>
-              <div class="stock-counter">
-                <button class="stock-counter-btn decrement-btn" data-field="fullBoxes" data-id="${item.id}" aria-label="Decrease Full Boxes">-</button>
-                <span class="stock-counter-val">${item.fullBoxes}</span>
-                <button class="stock-counter-btn increment-btn" data-field="fullBoxes" data-id="${item.id}" aria-label="Increase Full Boxes">+</button>
+          <div class="stock-card-content">
+            <!-- Column 1: Stock Name and badges -->
+            <div class="stock-name-wrapper">
+              <span class="stock-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+              <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.2rem; flex-wrap: wrap;">
+                ${isInStock 
+                  ? `<span class="stock-badge-active">In Stock</span>` 
+                  : `<span class="stock-badge-low">Out of Stock</span>`
+                }
+                ${showTypeBadge 
+                  ? `<span class="stock-badge-type">${escapeHtml(itemType)}</span>` 
+                  : ''
+                }
               </div>
             </div>
             
-            <!-- Column 3: Half Boxes -->
-            <div class="stock-item-counter-group">
-              <span class="stock-item-counter-group-label">Half Boxes</span>
-              <div class="stock-counter">
-                <button class="stock-counter-btn decrement-btn" data-field="halfBoxes" data-id="${item.id}" aria-label="Decrease Half Boxes">-</button>
-                <span class="stock-counter-val">${item.halfBoxes}</span>
-                <button class="stock-counter-btn increment-btn" data-field="halfBoxes" data-id="${item.id}" aria-label="Increase Half Boxes">+</button>
+            <!-- Desktop Counter wrappers (display: contents on desktop) -->
+            <div class="stock-item-row-mobile-counters">
+              
+              <!-- Column 2: Full Boxes -->
+              <div class="stock-item-counter-group">
+                <span class="stock-item-counter-group-label">Full Boxes</span>
+                <div class="stock-counter">
+                  <button class="stock-counter-btn decrement-btn" data-field="fullBoxes" data-id="${item.id}" aria-label="Decrease Full Boxes">-</button>
+                  <span class="stock-counter-val">${item.fullBoxes}</span>
+                  <button class="stock-counter-btn increment-btn" data-field="fullBoxes" data-id="${item.id}" aria-label="Increase Full Boxes">+</button>
+                </div>
+              </div>
+              
+              <!-- Column 3: Half Boxes -->
+              <div class="stock-item-counter-group">
+                <span class="stock-item-counter-group-label">Half Boxes</span>
+                <div class="stock-counter">
+                  <button class="stock-counter-btn decrement-btn" data-field="halfBoxes" data-id="${item.id}" aria-label="Decrease Half Boxes">-</button>
+                  <span class="stock-counter-val">${item.halfBoxes}</span>
+                  <button class="stock-counter-btn increment-btn" data-field="halfBoxes" data-id="${item.id}" aria-label="Increase Half Boxes">+</button>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <!-- Column 4 & 5 wrapper (display: contents on desktop) -->
-          <div class="stock-item-row-mobile-actions">
-            <!-- Column 4: Total Equivalent Boxes -->
-            <div class="stock-equiv-display">
-              ${equiv} <span>boxes</span>
-            </div>
             
-            <!-- Column 5: Action Buttons -->
-            <div class="stock-actions">
-              <button class="icon-btn edit-btn" data-id="${item.id}" title="Edit Name" aria-label="Edit Stock Name">
-                <i data-lucide="pencil"></i>
-              </button>
-              <button class="icon-btn delete-btn" data-id="${item.id}" title="Delete Stock" aria-label="Delete Stock Item">
-                <i data-lucide="trash-2"></i>
-              </button>
+            <!-- Column 4 & 5 wrapper (display: contents on desktop) -->
+            <div class="stock-item-row-mobile-actions">
+              <!-- Column 4: Total Equivalent Boxes -->
+              <div class="stock-equiv-display">
+                ${equiv} <span>boxes</span>
+              </div>
+              
+              <!-- Column 5: Action Buttons -->
+              <div class="stock-actions">
+                <button class="icon-btn edit-btn" data-id="${item.id}" title="Edit Name" aria-label="Edit Stock Name">
+                  <i data-lucide="pencil"></i>
+                </button>
+                <button class="icon-btn delete-btn" data-id="${item.id}" title="Delete Stock" aria-label="Delete Stock Item">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -932,11 +946,70 @@ function renderStockList() {
 
 // --- List Events (Edit, Delete, Increments) ---
 function attachListEventListeners() {
-  // Steppers logic inside list
   const stockElements = stockItemsList.querySelectorAll('.stock-item');
+  const selectAllStock = document.getElementById('selectAllStock');
+  
+  // Select All handler (header checkbox)
+  if (selectAllStock) {
+    // Determine the filtered items
+    const query = state.searchQuery.toLowerCase().trim();
+    const filter = state.filter;
+    const typeFilter = state.typeFilter;
+    const filtered = state.stocks.filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(query);
+      const hasInventory = item.fullBoxes > 0 || item.halfBoxes > 0;
+      const matchesType = typeFilter === 'all' || (item.type || '') === typeFilter;
+      if (!matchesType) return false;
+      if (filter === 'inStock') return matchesSearch && hasInventory;
+      if (filter === 'outOfStock') return matchesSearch && !hasInventory;
+      return matchesSearch;
+    });
+
+    selectAllStock.onchange = () => {
+      triggerHaptic(20);
+      const isChecked = selectAllStock.checked;
+      filtered.forEach(item => {
+        item.checked = isChecked;
+        item.updatedAt = new Date().toISOString();
+      });
+      saveState();
+    };
+  }
   
   stockElements.forEach(element => {
     const id = element.dataset.id;
+    
+    // Checkbox change handler
+    const checkbox = element.querySelector('.stock-checkbox');
+    if (checkbox) {
+      checkbox.onchange = (e) => {
+        e.stopPropagation();
+        const checked = checkbox.checked;
+        const item = state.stocks.find(x => x.id === id);
+        if (item) {
+          item.checked = checked;
+          item.updatedAt = new Date().toISOString();
+          
+          if (checked) {
+            element.classList.add('checked');
+          } else {
+            element.classList.remove('checked');
+          }
+          
+          // Re-evaluate select all state without full re-render for performance
+          if (selectAllStock) {
+            const allChecked = Array.from(stockElements).every(el => {
+              const cb = el.querySelector('.stock-checkbox');
+              return cb ? cb.checked : false;
+            });
+            selectAllStock.checked = allChecked;
+          }
+          
+          triggerHaptic(15);
+          saveState();
+        }
+      };
+    }
     
     // Decrement handler
     element.querySelectorAll('.decrement-btn').forEach(btn => {
@@ -1110,7 +1183,8 @@ stockForm.addEventListener('submit', (e) => {
       type: type,
       fullBoxes: Math.max(0, full),
       halfBoxes: Math.max(0, half),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      checked: false
     };
     state.stocks.push(newItem);
     showToast(`Added "${name}"`);
@@ -1450,7 +1524,8 @@ function handleJsonImport(content) {
           type: item.type || 'General',
           fullBoxes: Math.max(0, parseInt(item.fullBoxes, 10) || 0),
           halfBoxes: Math.max(0, parseInt(item.halfBoxes, 10) || 0),
-          updatedAt: item.updatedAt || new Date().toISOString()
+          updatedAt: item.updatedAt || new Date().toISOString(),
+          checked: item.checked === true
         });
       }
     });
@@ -1540,7 +1615,8 @@ function handleCsvImport(content) {
           type: type,
           fullBoxes: Math.max(0, full),
           halfBoxes: Math.max(0, half),
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          checked: false
         });
         
         if (type && !state.stockTypes.includes(type)) {
