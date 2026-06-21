@@ -11,7 +11,8 @@ let state = {
   typeFilter: 'all', // category filter
   theme: 'dark',
   useFirebase: false,
-  db: null
+  db: null,
+  updatedAt: null
 };
 
 // --- DOM Elements ---
@@ -173,6 +174,23 @@ function loadState() {
       ];
       localStorage.setItem('stocks', JSON.stringify(state.stocks));
     }
+
+    // Load Last Updated Timestamp
+    const savedUpdatedAt = localStorage.getItem('stateUpdatedAt');
+    if (savedUpdatedAt) {
+      state.updatedAt = savedUpdatedAt;
+    } else {
+      // Find the latest updatedAt among all stocks
+      let maxTime = 0;
+      if (state.stocks && state.stocks.length > 0) {
+        state.stocks.forEach(item => {
+          const t = new Date(item.updatedAt || 0).getTime();
+          if (t > maxTime) maxTime = t;
+        });
+      }
+      state.updatedAt = maxTime > 0 ? new Date(maxTime).toISOString() : new Date().toISOString();
+      localStorage.setItem('stateUpdatedAt', state.updatedAt);
+    }
     
     populateTypeDropdowns();
   } catch (error) {
@@ -258,31 +276,36 @@ function initFirebase() {
 // Merge local and remote stock states based on updatedAt timestamps
 function mergeInventory(remoteStocks, remoteTypes, remoteUpdatedAt) {
   const remoteTime = new Date(remoteUpdatedAt || 0).getTime();
+  const localTime = new Date(state.updatedAt || 0).getTime();
+  
+  // If local state is newer or equal, we keep the local state
+  if (localTime >= remoteTime) {
+    return {
+      stocks: state.stocks,
+      stockTypes: state.stockTypes
+    };
+  }
+  
   const mergedStocks = [];
   
   // 1. Process items that exist locally
   state.stocks.forEach(localItem => {
     const remoteItem = remoteStocks.find(item => item.id === localItem.id);
-    const localTime = new Date(localItem.updatedAt || 0).getTime();
+    const localItemTime = new Date(localItem.updatedAt || 0).getTime();
     
     if (remoteItem) {
       // Item exists in both. Take the newer one.
       const remoteItemTime = new Date(remoteItem.updatedAt || 0).getTime();
-      if (remoteItemTime > localTime) {
+      if (remoteItemTime > localItemTime) {
         mergedStocks.push(remoteItem);
       } else {
         mergedStocks.push(localItem);
       }
     } else {
       // Item exists locally but is missing in the remote list.
-      // Was it deleted remotely, or was it created locally while offline?
-      if (localTime > remoteTime) {
-        // It was modified locally *after* the remote state was last saved. Keep it!
-        mergedStocks.push(localItem);
-      } else {
-        // It was modified locally *before* the remote state was saved, but is missing remotely.
-        // This means it was deleted remotely. Skip it (delete it locally).
-      }
+      // Since localTime < remoteTime (the remote state was saved AFTER our last local modification),
+      // and this item is missing remotely, it must have been deleted remotely.
+      // So we do NOT keep it locally (we delete it).
     }
   });
   
@@ -290,12 +313,22 @@ function mergeInventory(remoteStocks, remoteTypes, remoteUpdatedAt) {
   remoteStocks.forEach(remoteItem => {
     const existsLocally = state.stocks.some(item => item.id === remoteItem.id);
     if (!existsLocally) {
-      mergedStocks.push(remoteItem);
+      // Item exists remotely but not locally.
+      // Since localTime < remoteTime, was it deleted locally, or was it created remotely?
+      const remoteItemTime = new Date(remoteItem.updatedAt || 0).getTime();
+      if (remoteItemTime > localTime) {
+        // It was created or modified remotely AFTER our last local edit. Keep it!
+        mergedStocks.push(remoteItem);
+      } else {
+        // It was created/modified remotely BEFORE our last local edit, but we don't have it.
+        // This means it was deleted locally. Do NOT resurrect it!
+      }
     }
   });
   
   // Merge categories (stock types)
-  const mergedTypes = Array.from(new Set([...state.stockTypes, ...remoteTypes]));
+  // Since remoteTime > localTime, we accept the remote categories.
+  const mergedTypes = remoteTypes;
   
   return {
     stocks: mergedStocks,
@@ -327,9 +360,11 @@ function setupFirebaseListener() {
           if (localStocksStr !== mergedStocksStr || localTypesStr !== mergedTypesStr) {
             state.stocks = merged.stocks;
             state.stockTypes = merged.stockTypes;
+            state.updatedAt = data.updatedAt || new Date().toISOString();
             
             localStorage.setItem('stocks', JSON.stringify(state.stocks));
             localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+            localStorage.setItem('stateUpdatedAt', state.updatedAt);
             
             populateTypeDropdowns();
             updateDashboard();
@@ -337,6 +372,14 @@ function setupFirebaseListener() {
             
             updateSyncStatus(true);
             showToast('Inventory synced with Cloud.', 'info');
+          } else {
+            // If identical, align our local timestamp if the server timestamp is newer
+            const remoteTime = new Date(data.updatedAt || 0).getTime();
+            const localTime = new Date(state.updatedAt || 0).getTime();
+            if (remoteTime > localTime) {
+              state.updatedAt = data.updatedAt;
+              localStorage.setItem('stateUpdatedAt', state.updatedAt);
+            }
           }
         }
       }
@@ -352,7 +395,7 @@ async function autoSyncWithServer() {
     const payload = {
       stocks: state.stocks,
       stockTypes: state.stockTypes,
-      updatedAt: new Date().toISOString()
+      updatedAt: state.updatedAt || new Date().toISOString()
     };
     
     if (state.useFirebase) {
@@ -381,8 +424,10 @@ async function autoSyncWithServer() {
 
 function saveState(stocksUpdated = true) {
   if (stocksUpdated) {
+    state.updatedAt = new Date().toISOString();
     localStorage.setItem('stocks', JSON.stringify(state.stocks));
     localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+    localStorage.setItem('stateUpdatedAt', state.updatedAt);
     
     // Auto-sync in background, debounced by 1 second to optimize requests
     if (syncTimeout) clearTimeout(syncTimeout);
@@ -403,11 +448,23 @@ async function loadFromServer() {
       if (doc.exists) {
         const data = doc.data();
         if (data && Array.isArray(data.stocks)) {
+          // Compare timestamps
+          const remoteTime = new Date(data.updatedAt || 0).getTime();
+          const localTime = new Date(state.updatedAt || 0).getTime();
+          
+          if (localTime > remoteTime) {
+            console.log('Local state is newer than Firestore. Pushing local state to cloud...');
+            autoSyncWithServer();
+            return;
+          }
+          
           state.stocks = data.stocks;
           state.stockTypes = data.stockTypes || [];
+          state.updatedAt = data.updatedAt || new Date().toISOString();
           
           localStorage.setItem('stocks', JSON.stringify(state.stocks));
           localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+          localStorage.setItem('stateUpdatedAt', state.updatedAt);
           
           populateTypeDropdowns();
           saveState(false); // Recalculate stats and render
@@ -438,14 +495,26 @@ async function loadFromServer() {
       
       const data = await response.json();
       if (data && Array.isArray(data.stocks)) {
+        // Compare timestamps
+        const remoteTime = new Date(data.updatedAt || 0).getTime();
+        const localTime = new Date(state.updatedAt || 0).getTime();
+        
+        if (localTime > remoteTime) {
+          console.log('Local state is newer than Python server. Pushing local state...');
+          autoSyncWithServer();
+          return;
+        }
+        
         state.stocks = data.stocks;
         if (Array.isArray(data.stockTypes)) {
           state.stockTypes = data.stockTypes;
         }
+        state.updatedAt = data.updatedAt || new Date().toISOString();
         
         // Update local storage cache
         localStorage.setItem('stocks', JSON.stringify(state.stocks));
         localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+        localStorage.setItem('stateUpdatedAt', state.updatedAt);
         
         populateTypeDropdowns();
         saveState(false); // Recalculate stats and render
@@ -461,6 +530,10 @@ async function loadFromServer() {
 
 // Save & Sync Inventory Data to Python Server or Firestore
 async function syncWithServer() {
+  if (syncTimeout) {
+    clearTimeout(syncTimeout);
+    syncTimeout = null;
+  }
   triggerHaptic(20);
   const syncText = syncBtn.querySelector('.btn-text');
   const activeIcon = syncBtn.querySelector('.sync-icon-connected:not(.hidden)') || 
@@ -477,7 +550,7 @@ async function syncWithServer() {
     const payload = {
       stocks: state.stocks,
       stockTypes: state.stockTypes,
-      updatedAt: new Date().toISOString()
+      updatedAt: state.updatedAt || new Date().toISOString()
     };
     
     if (state.useFirebase) {
@@ -668,6 +741,9 @@ function renameStockType(oldName) {
   populateTypeDropdowns();
   renderTypesList();
   
+  // Force immediate sync to server to prevent reload races
+  syncWithServer();
+  
   let msg = `Renamed category "${oldName}" to "${trimmedNewName}".`;
   if (affectedCount > 0) {
     msg += ` Updated ${affectedCount} stock items.`;
@@ -695,6 +771,10 @@ function deleteStockType(typeToDelete) {
     saveState();
     populateTypeDropdowns();
     renderTypesList();
+    
+    // Force immediate sync to server to prevent reload races
+    syncWithServer();
+    
     showToast(`Category "${typeToDelete}" deleted.`);
   }
 }
@@ -1208,6 +1288,10 @@ addTypeForm.addEventListener('submit', (e) => {
   saveState();
   populateTypeDropdowns();
   renderTypesList();
+  
+  // Force immediate sync to server to prevent reload races
+  syncWithServer();
+  
   newTypeNameInput.value = '';
   newTypeNameInput.focus();
   showToast(`Added category "${newType}".`);
