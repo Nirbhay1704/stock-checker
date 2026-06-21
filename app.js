@@ -592,7 +592,10 @@ function renderTypesList() {
       <div class="type-item">
         <span>${escapeHtml(type)}</span>
         <div class="type-item-actions">
-          <button class="icon-btn delete-btn" data-type="${escapeHtml(type)}" title="Delete Type" aria-label="Delete Type">
+          <button class="icon-btn edit-type-btn" data-type="${escapeHtml(type)}" title="Rename Category" aria-label="Rename Category" style="margin-right: 0.25rem;">
+            <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
+          </button>
+          <button class="icon-btn delete-btn" data-type="${escapeHtml(type)}" title="Delete Category" aria-label="Delete Category">
             <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
           </button>
         </div>
@@ -601,6 +604,16 @@ function renderTypesList() {
   }).join('');
 
   lucide.createIcons();
+
+  // Attach rename listeners
+  typesListContainer.querySelectorAll('.edit-type-btn').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      triggerHaptic(20);
+      const typeToRename = btn.dataset.type;
+      renameStockType(typeToRename);
+    };
+  });
 
   // Attach delete listeners
   typesListContainer.querySelectorAll('.delete-btn').forEach(btn => {
@@ -611,6 +624,55 @@ function renderTypesList() {
       deleteStockType(typeToDelete);
     };
   });
+}
+
+function renameStockType(oldName) {
+  const newName = prompt(`Enter a new name for the category "${oldName}":`, oldName);
+  if (newName === null) return; // User cancelled
+  
+  const trimmedNewName = newName.trim();
+  if (!trimmedNewName) {
+    showToast('Category name cannot be empty.', 'error');
+    return;
+  }
+  
+  if (trimmedNewName.toLowerCase() === oldName.toLowerCase()) {
+    if (trimmedNewName === oldName) return; // No change
+  }
+  
+  // Check duplicates
+  const isDuplicate = state.stockTypes.some(t => t.toLowerCase() === trimmedNewName.toLowerCase() && t !== oldName);
+  if (isDuplicate) {
+    showToast(`A category named "${trimmedNewName}" already exists.`, 'error');
+    return;
+  }
+  
+  // 1. Rename in state.stockTypes
+  const typeIndex = state.stockTypes.indexOf(oldName);
+  if (typeIndex !== -1) {
+    state.stockTypes[typeIndex] = trimmedNewName;
+  }
+  
+  // 2. Rename in all stocks that belong to oldName
+  let affectedCount = 0;
+  state.stocks.forEach(item => {
+    if (item.type === oldName) {
+      item.type = trimmedNewName;
+      item.updatedAt = new Date().toISOString();
+      affectedCount++;
+    }
+  });
+  
+  // Save, re-render, and notify
+  saveState();
+  populateTypeDropdowns();
+  renderTypesList();
+  
+  let msg = `Renamed category "${oldName}" to "${trimmedNewName}".`;
+  if (affectedCount > 0) {
+    msg += ` Updated ${affectedCount} stock items.`;
+  }
+  showToast(msg);
 }
 
 function deleteStockType(typeToDelete) {
