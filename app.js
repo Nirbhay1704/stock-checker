@@ -574,7 +574,7 @@ function populateTypeDropdowns() {
 
   // 2. Populate Dropdown in Stock Editor Form
   const currentEditVal = stockTypeInput.value || '';
-  stockTypeInput.innerHTML = '';
+  stockTypeInput.innerHTML = '<option value="">(No Category)</option>';
   state.stockTypes.forEach(type => {
     stockTypeInput.innerHTML += `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`;
   });

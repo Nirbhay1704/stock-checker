@@ -1,9 +1,9 @@
-const CACHE_NAME = 'stockchecker-v11';
+const CACHE_NAME = 'stockchecker-v12';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
-  './app.js?v=9',
+  './app.js?v=10',
   './manifest.json',
   './icon.svg',
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap',
