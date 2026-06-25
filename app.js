@@ -12,7 +12,8 @@ let state = {
   theme: 'dark',
   useFirebase: false,
   db: null,
-  updatedAt: null
+  updatedAt: null,
+  sortBy: 'name'
 };
 
 // --- DOM Elements ---
@@ -28,6 +29,7 @@ const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
 const filterSelect = document.getElementById('filterSelect');
 const typeFilterSelect = document.getElementById('typeFilterSelect');
+const sortSelect = document.getElementById('sortSelect');
 const addStockBtn = document.getElementById('addStockBtn');
 const mobileFabAddBtn = document.getElementById('mobileFabAddBtn');
 const stockItemsList = document.getElementById('stockItemsList');
@@ -835,8 +837,24 @@ function renderStockList() {
     return matchesSearch;
   });
   
-  // Sort alphabetically by name
-  filtered.sort((a, b) => a.name.localeCompare(b.name));
+  // Sort based on sortBy option
+  const sortBy = state.sortBy || 'name';
+  if (sortBy === 'boxesDesc') {
+    filtered.sort((a, b) => {
+      const equivA = a.fullBoxes + a.halfBoxes * 0.5;
+      const equivB = b.fullBoxes + b.halfBoxes * 0.5;
+      return equivB - equivA || a.name.localeCompare(b.name);
+    });
+  } else if (sortBy === 'boxesAsc') {
+    filtered.sort((a, b) => {
+      const equivA = a.fullBoxes + a.halfBoxes * 0.5;
+      const equivB = b.fullBoxes + b.halfBoxes * 0.5;
+      return equivA - equivB || a.name.localeCompare(b.name);
+    });
+  } else {
+    // Default: Sort alphabetically by name
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
+  }
   
   // Toggle Empty State
   if (filtered.length === 0) {
@@ -1419,6 +1437,12 @@ filterSelect.addEventListener('change', (e) => {
 typeFilterSelect.addEventListener('change', (e) => {
   triggerHaptic(15);
   state.typeFilter = e.target.value;
+  renderStockList();
+});
+
+sortSelect.addEventListener('change', (e) => {
+  triggerHaptic(15);
+  state.sortBy = e.target.value;
   renderStockList();
 });
 
