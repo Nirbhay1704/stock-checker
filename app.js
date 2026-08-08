@@ -388,6 +388,7 @@ function setupFirebaseListener() {
     }, (error) => {
       console.error('Firestore listener error:', error);
       updateSyncStatus(false);
+      showToast(`Cloud Sync Connection Failed: ${error.message || error}`, 'error');
     });
 }
 
@@ -480,7 +481,7 @@ async function loadFromServer() {
     } catch (err) {
       console.error('Error loading from Firestore:', err);
       updateSyncStatus(false);
-      showToast('Failed to load from cloud.', 'error');
+      showToast(`Failed to load from cloud: ${err.message || err}`, 'error');
     }
   } else {
     // Check if we are running on a static live server (GitHub Pages)
