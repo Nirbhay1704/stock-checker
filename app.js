@@ -185,9 +185,12 @@ function loadState() {
     if (savedStocks) {
       state.stocks = JSON.parse(savedStocks);
       state.stocks.forEach(item => {
+        item.id = String(item.id || generateId());
+        item.name = String(item.name || '').trim();
         if (!item.mainCategory) {
           item.mainCategory = item.type || (state.mainCategories[0] || 'Spun');
         }
+        item.mainCategory = String(item.mainCategory).trim();
       });
     } else {
       // Initial sample items
@@ -675,21 +678,21 @@ function renderTypesList() {
   const categories = state.mainCategories || [];
   
   if (categories.length === 0) {
-    typesListContainer.innerHTML = '<p class="file-name-display" style="padding: 1rem;">No categories defined. Use the form above to add one.</p>';
+    typesListContainer.innerHTML = '<p class="file-name-display" style="padding: 1rem; text-align: center;">No categories defined. Use the form above to add one.</p>';
     return;
   }
 
-  typesListContainer.innerHTML = categories.map((cat) => {
-    const itemCount = state.stocks.filter(item => (item.mainCategory || '').toLowerCase() === cat.toLowerCase()).length;
+  typesListContainer.innerHTML = categories.map((cat, idx) => {
+    const count = state.stocks.filter(item => (item.mainCategory || '').toLowerCase() === cat.toLowerCase()).length;
 
     return `
-      <div class="category-item" data-cat-name="${escapeHtml(cat)}">
+      <div class="category-item" id="catItem_${idx}" data-cat-name="${escapeHtml(cat)}">
         <div class="category-item-info">
           <span class="category-item-name">${escapeHtml(cat)}</span>
-          <span class="category-item-count">${itemCount} ${itemCount === 1 ? 'item' : 'items'}</span>
+          <span class="category-item-count">${count} ${count === 1 ? 'item' : 'items'}</span>
         </div>
         <div class="category-item-actions">
-          <button type="button" class="icon-btn edit-btn rename-cat-btn" data-cat-name="${escapeHtml(cat)}" title="Edit / Rename Category" aria-label="Rename Category">
+          <button type="button" class="icon-btn edit-btn rename-cat-btn" data-cat-idx="${idx}" data-cat-name="${escapeHtml(cat)}" title="Edit / Rename Category" aria-label="Rename Category">
             <i data-lucide="pencil" style="width: 15px; height: 15px;"></i>
           </button>
           <button type="button" class="icon-btn delete-btn delete-cat-btn" data-cat-name="${escapeHtml(cat)}" title="Delete Category" aria-label="Delete Category">
@@ -702,13 +705,46 @@ function renderTypesList() {
 
   lucide.createIcons();
 
-  // Bind Rename Main Category buttons
+  // Bind Rename Main Category buttons to inline edit form
   typesListContainer.querySelectorAll('.rename-cat-btn').forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
       triggerHaptic(20);
-      const catName = btn.dataset.catName;
-      renameMainCategory(catName);
+      const idx = btn.dataset.catIdx;
+      const oldName = btn.dataset.catName;
+      const row = document.getElementById(`catItem_${idx}`);
+      if (!row) return;
+
+      row.innerHTML = `
+        <form class="category-edit-form" id="catEditForm_${idx}">
+          <input type="text" class="category-rename-input" id="catEditInput_${idx}" value="${escapeHtml(oldName)}" required autocomplete="off">
+          <button type="submit" class="btn btn-sm btn-primary save-rename-btn" title="Save Changes">Save</button>
+          <button type="button" class="btn btn-sm btn-secondary cancel-rename-btn" title="Cancel">Cancel</button>
+        </form>
+      `;
+
+      const input = document.getElementById(`catEditInput_${idx}`);
+      if (input) {
+        input.focus();
+        input.select();
+      }
+
+      const form = document.getElementById(`catEditForm_${idx}`);
+      form.onsubmit = (ev) => {
+        ev.preventDefault();
+        const newName = input.value.trim();
+        if (!newName) {
+          showToast('Category name cannot be empty.', 'error');
+          return;
+        }
+        performCategoryRename(oldName, newName);
+      };
+
+      const cancelBtn = row.querySelector('.cancel-rename-btn');
+      cancelBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        renderTypesList();
+      };
     };
   });
 
@@ -723,24 +759,25 @@ function renderTypesList() {
   });
 }
 
-// Rename / Edit a Main Category
-function renameMainCategory(oldName) {
-  const newName = prompt(`Enter a new name for Main Category "${oldName}":`, oldName);
-  if (newName === null) return;
+// Perform Category Rename
+function performCategoryRename(oldName, newName) {
   const trimmed = newName.trim();
   if (!trimmed) {
     showToast('Category name cannot be empty.', 'error');
     return;
   }
-  if (trimmed.toLowerCase() === oldName.toLowerCase() && trimmed === oldName) return;
+  if (trimmed.toLowerCase() === oldName.toLowerCase() && trimmed === oldName) {
+    renderTypesList();
+    return;
+  }
 
-  const isDuplicate = state.mainCategories.some(c => c.toLowerCase() === trimmed.toLowerCase() && c !== oldName);
+  const isDuplicate = state.mainCategories.some(c => c.toLowerCase() === trimmed.toLowerCase() && c.toLowerCase() !== oldName.toLowerCase());
   if (isDuplicate) {
     showToast(`Category "${trimmed}" already exists.`, 'error');
     return;
   }
 
-  const catIdx = state.mainCategories.indexOf(oldName);
+  const catIdx = state.mainCategories.findIndex(c => c.toLowerCase() === oldName.toLowerCase());
   if (catIdx !== -1) {
     state.mainCategories[catIdx] = trimmed;
   } else {
@@ -757,7 +794,7 @@ function renameMainCategory(oldName) {
     }
   });
 
-  if (state.mainCategoryFilter === oldName) {
+  if ((state.mainCategoryFilter || '').toLowerCase() === oldName.toLowerCase()) {
     state.mainCategoryFilter = trimmed;
   }
 
@@ -774,7 +811,7 @@ function deleteMainCategory(catName) {
   const affectedCount = state.stocks.filter(item => (item.mainCategory || '').toLowerCase() === catName.toLowerCase()).length;
   let confirmMsg = `Are you sure you want to delete category "${catName}"?`;
   if (affectedCount > 0) {
-    confirmMsg += `\n\nWarning: ${affectedCount} stock items belong to this category.`;
+    confirmMsg += `\n\nWarning: ${affectedCount} stock items currently belong to this category.`;
   }
 
   if (confirm(confirmMsg)) {
@@ -789,7 +826,7 @@ function deleteMainCategory(catName) {
       }
     });
 
-    if (state.mainCategoryFilter === catName) {
+    if ((state.mainCategoryFilter || '').toLowerCase() === catName.toLowerCase()) {
       state.mainCategoryFilter = 'all';
     }
 
@@ -809,8 +846,8 @@ function updateDashboard() {
   let totalHalf = 0;
   
   state.stocks.forEach(item => {
-    totalFull += item.fullBoxes;
-    totalHalf += item.halfBoxes;
+    totalFull += (parseInt(item.fullBoxes, 10) || 0);
+    totalHalf += (parseInt(item.halfBoxes, 10) || 0);
   });
   
   const totalEquiv = totalFull + (totalHalf * 0.5);
@@ -843,12 +880,15 @@ function renderStockList() {
   const mainCatFilter = state.mainCategoryFilter;
   
   const filtered = state.stocks.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(query) || 
-                          (item.mainCategory && item.mainCategory.toLowerCase().includes(query));
-    const hasInventory = item.fullBoxes > 0 || item.halfBoxes > 0;
+    const itemName = String(item.name || '').toLowerCase();
+    const itemCat = String(item.mainCategory || '').toLowerCase();
+    const matchesSearch = itemName.includes(query) || itemCat.includes(query);
+    const full = parseInt(item.fullBoxes, 10) || 0;
+    const half = parseInt(item.halfBoxes, 10) || 0;
+    const hasInventory = full > 0 || half > 0;
     
     // Check category filter
-    const matchesMainCat = mainCatFilter === 'all' || (item.mainCategory || '') === mainCatFilter;
+    const matchesMainCat = mainCatFilter === 'all' || itemCat === mainCatFilter.toLowerCase();
     if (!matchesMainCat) return false;
     
     if (filter === 'inStock') {
@@ -863,19 +903,19 @@ function renderStockList() {
   const sortBy = state.sortBy || 'name';
   if (sortBy === 'boxesDesc') {
     filtered.sort((a, b) => {
-      const equivA = a.fullBoxes + a.halfBoxes * 0.5;
-      const equivB = b.fullBoxes + b.halfBoxes * 0.5;
-      return equivB - equivA || a.name.localeCompare(b.name);
+      const equivA = (parseInt(a.fullBoxes, 10) || 0) + (parseInt(a.halfBoxes, 10) || 0) * 0.5;
+      const equivB = (parseInt(b.fullBoxes, 10) || 0) + (parseInt(b.halfBoxes, 10) || 0) * 0.5;
+      return equivB - equivA || String(a.name || '').localeCompare(String(b.name || ''));
     });
   } else if (sortBy === 'boxesAsc') {
     filtered.sort((a, b) => {
-      const equivA = a.fullBoxes + a.halfBoxes * 0.5;
-      const equivB = b.fullBoxes + b.halfBoxes * 0.5;
-      return equivA - equivB || a.name.localeCompare(b.name);
+      const equivA = (parseInt(a.fullBoxes, 10) || 0) + (parseInt(a.halfBoxes, 10) || 0) * 0.5;
+      const equivB = (parseInt(b.fullBoxes, 10) || 0) + (parseInt(b.halfBoxes, 10) || 0) * 0.5;
+      return equivA - equivB || String(a.name || '').localeCompare(String(b.name || ''));
     });
   } else {
     // Default: Sort alphabetically by name
-    filtered.sort((a, b) => a.name.localeCompare(b.name));
+    filtered.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   }
   
   // Toggle Empty State
@@ -903,16 +943,19 @@ function renderStockList() {
 
     // Efficiently render list items
     stockItemsList.innerHTML = filtered.map(item => {
-      const equiv = (item.fullBoxes + item.halfBoxes * 0.5).toFixed(1);
-      const isInStock = item.fullBoxes > 0 || item.halfBoxes > 0;
+      const full = parseInt(item.fullBoxes, 10) || 0;
+      const half = parseInt(item.halfBoxes, 10) || 0;
+      const equiv = (full + half * 0.5).toFixed(1);
+      const isInStock = full > 0 || half > 0;
       const itemMainCat = item.mainCategory || 'Spun';
+      const itemId = String(item.id);
       
       return `
-        <div class="stock-item ${item.checked ? 'checked' : ''}" data-id="${item.id}" role="listitem">
+        <div class="stock-item ${item.checked ? 'checked' : ''}" data-id="${escapeHtml(itemId)}" role="listitem">
           
           <!-- Checkbox Column -->
           <div class="col-check">
-            <input type="checkbox" class="custom-checkbox stock-checkbox" data-id="${item.id}" ${item.checked ? 'checked' : ''} aria-label="Check stock item">
+            <input type="checkbox" class="custom-checkbox stock-checkbox" data-id="${escapeHtml(itemId)}" ${item.checked ? 'checked' : ''} aria-label="Check stock item">
           </div>
           
           <div class="stock-card-content">
@@ -935,9 +978,9 @@ function renderStockList() {
               <div class="stock-item-counter-group">
                 <span class="stock-item-counter-group-label">Full Boxes</span>
                 <div class="stock-counter">
-                  <button class="stock-counter-btn decrement-btn" data-field="fullBoxes" data-id="${item.id}" aria-label="Decrease Full Boxes">-</button>
-                  <span class="stock-counter-val">${item.fullBoxes}</span>
-                  <button class="stock-counter-btn increment-btn" data-field="fullBoxes" data-id="${item.id}" aria-label="Increase Full Boxes">+</button>
+                  <button class="stock-counter-btn decrement-btn" data-field="fullBoxes" data-id="${escapeHtml(itemId)}" aria-label="Decrease Full Boxes">-</button>
+                  <span class="stock-counter-val">${full}</span>
+                  <button class="stock-counter-btn increment-btn" data-field="fullBoxes" data-id="${escapeHtml(itemId)}" aria-label="Increase Full Boxes">+</button>
                 </div>
               </div>
               
@@ -945,9 +988,9 @@ function renderStockList() {
               <div class="stock-item-counter-group">
                 <span class="stock-item-counter-group-label">Half Boxes</span>
                 <div class="stock-counter">
-                  <button class="stock-counter-btn decrement-btn" data-field="halfBoxes" data-id="${item.id}" aria-label="Decrease Half Boxes">-</button>
-                  <span class="stock-counter-val">${item.halfBoxes}</span>
-                  <button class="stock-counter-btn increment-btn" data-field="halfBoxes" data-id="${item.id}" aria-label="Increase Half Boxes">+</button>
+                  <button class="stock-counter-btn decrement-btn" data-field="halfBoxes" data-id="${escapeHtml(itemId)}" aria-label="Decrease Half Boxes">-</button>
+                  <span class="stock-counter-val">${half}</span>
+                  <button class="stock-counter-btn increment-btn" data-field="halfBoxes" data-id="${escapeHtml(itemId)}" aria-label="Increase Half Boxes">+</button>
                 </div>
               </div>
             </div>
@@ -961,10 +1004,10 @@ function renderStockList() {
               
               <!-- Column 5: Action Buttons -->
               <div class="stock-actions">
-                <button class="icon-btn edit-btn" data-id="${item.id}" title="Edit Item" aria-label="Edit Stock Item">
+                <button type="button" class="icon-btn edit-btn" data-id="${escapeHtml(itemId)}" title="Edit Item" aria-label="Edit Stock Item">
                   <i data-lucide="pencil"></i>
                 </button>
-                <button class="icon-btn delete-btn" data-id="${item.id}" title="Delete Item" aria-label="Delete Stock Item">
+                <button type="button" class="icon-btn delete-btn" data-id="${escapeHtml(itemId)}" title="Delete Item" aria-label="Delete Stock Item">
                   <i data-lucide="trash-2"></i>
                 </button>
               </div>
@@ -990,10 +1033,13 @@ function attachListEventListeners() {
     const filter = state.filter;
     const mainCatFilter = state.mainCategoryFilter;
     const filtered = state.stocks.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(query) || 
-                            (item.mainCategory && item.mainCategory.toLowerCase().includes(query));
-      const hasInventory = item.fullBoxes > 0 || item.halfBoxes > 0;
-      const matchesMainCat = mainCatFilter === 'all' || (item.mainCategory || '') === mainCatFilter;
+      const itemName = String(item.name || '').toLowerCase();
+      const itemCat = String(item.mainCategory || '').toLowerCase();
+      const matchesSearch = itemName.includes(query) || itemCat.includes(query);
+      const full = parseInt(item.fullBoxes, 10) || 0;
+      const half = parseInt(item.halfBoxes, 10) || 0;
+      const hasInventory = full > 0 || half > 0;
+      const matchesMainCat = mainCatFilter === 'all' || itemCat === mainCatFilter.toLowerCase();
       if (!matchesMainCat) return false;
       if (filter === 'inStock') return matchesSearch && hasInventory;
       if (filter === 'outOfStock') return matchesSearch && !hasInventory;
@@ -1012,7 +1058,7 @@ function attachListEventListeners() {
   }
   
   stockElements.forEach(element => {
-    const id = element.dataset.id;
+    const id = String(element.dataset.id);
     
     // Checkbox change handler
     const checkbox = element.querySelector('.stock-checkbox');
@@ -1020,7 +1066,7 @@ function attachListEventListeners() {
       checkbox.onchange = (e) => {
         e.stopPropagation();
         const checked = checkbox.checked;
-        const item = state.stocks.find(x => x.id === id);
+        const item = state.stocks.find(x => String(x.id) === id);
         if (item) {
           item.checked = checked;
           item.updatedAt = new Date().toISOString();
@@ -1064,26 +1110,33 @@ function attachListEventListeners() {
     });
     
     // Edit action
-    element.querySelector('.edit-btn').onclick = (e) => {
-      e.stopPropagation();
-      triggerHaptic(20);
-      openAddEditModal(id);
-    };
+    const editBtn = element.querySelector('.edit-btn');
+    if (editBtn) {
+      editBtn.onclick = (e) => {
+        e.stopPropagation();
+        triggerHaptic(20);
+        openAddEditModal(id);
+      };
+    }
     
     // Delete action
-    element.querySelector('.delete-btn').onclick = (e) => {
-      e.stopPropagation();
-      triggerHaptic(30);
-      deleteStockItem(id);
-    };
+    const deleteBtn = element.querySelector('.delete-btn');
+    if (deleteBtn) {
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        triggerHaptic(30);
+        deleteStockItem(id);
+      };
+    }
   });
 }
 
 function updateStockCount(id, field, change) {
-  const stockIndex = state.stocks.findIndex(item => item.id === id);
+  const idStr = String(id);
+  const stockIndex = state.stocks.findIndex(item => String(item.id) === idStr);
   if (stockIndex !== -1) {
     const item = state.stocks[stockIndex];
-    const currentVal = item[field] || 0;
+    const currentVal = parseInt(item[field], 10) || 0;
     const newVal = Math.max(0, currentVal + change);
     
     if (currentVal !== newVal) {
@@ -1095,7 +1148,8 @@ function updateStockCount(id, field, change) {
 }
 
 function deleteStockItem(id) {
-  const stockIndex = state.stocks.findIndex(item => item.id === id);
+  const idStr = String(id);
+  const stockIndex = state.stocks.findIndex(item => String(item.id) === idStr);
   if (stockIndex !== -1) {
     const item = state.stocks[stockIndex];
     if (confirm(`Are you sure you want to delete "${item.name}"?`)) {
@@ -1113,15 +1167,24 @@ function openAddEditModal(editId = null) {
   resetFormErrors();
   populateTypeDropdowns();
   
-  if (editId) {
-    const item = state.stocks.find(x => x.id === editId);
+  if (editId !== null && editId !== undefined && editId !== '') {
+    const editIdStr = String(editId);
+    const item = state.stocks.find(x => String(x.id) === editIdStr);
     if (!item) return;
     modalTitle.textContent = 'Edit Stock Item';
     stockIdInput.value = item.id;
-    stockMainCategoryInput.value = item.mainCategory || (state.mainCategories[0] || 'Spun');
-    stockNameInput.value = item.name;
-    stockFullInput.value = item.fullBoxes;
-    stockHalfInput.value = item.halfBoxes;
+    
+    // Check if category exists in select, if not add it dynamically
+    const catVal = item.mainCategory || (state.mainCategories[0] || 'Spun');
+    const optionExists = Array.from(stockMainCategoryInput.options).some(opt => opt.value.toLowerCase() === catVal.toLowerCase());
+    if (!optionExists) {
+      stockMainCategoryInput.innerHTML += `<option value="${escapeHtml(catVal)}">${escapeHtml(catVal)}</option>`;
+    }
+    stockMainCategoryInput.value = catVal;
+    
+    stockNameInput.value = item.name || '';
+    stockFullInput.value = parseInt(item.fullBoxes, 10) || 0;
+    stockHalfInput.value = parseInt(item.halfBoxes, 10) || 0;
   } else {
     modalTitle.textContent = 'Add Stock Item';
     stockIdInput.value = '';
@@ -1174,7 +1237,7 @@ stockForm.addEventListener('submit', (e) => {
   const name = stockNameInput.value.trim();
   const full = parseInt(stockFullInput.value, 10) || 0;
   const half = parseInt(stockHalfInput.value, 10) || 0;
-  const editId = stockIdInput.value;
+  const editId = stockIdInput.value ? String(stockIdInput.value) : '';
   
   if (!name) {
     nameError.textContent = 'Stock name is required';
@@ -1184,11 +1247,11 @@ stockForm.addEventListener('submit', (e) => {
     return;
   }
   
-  // Duplicate Check
+  // Duplicate Check: only if name AND category match on a DIFFERENT item
   const isDuplicate = state.stocks.some(item => 
     item.name.toLowerCase() === name.toLowerCase() && 
     (item.mainCategory || '').toLowerCase() === mainCategory.toLowerCase() && 
-    item.id !== editId
+    String(item.id) !== editId
   );
   
   if (isDuplicate) {
@@ -1202,7 +1265,7 @@ stockForm.addEventListener('submit', (e) => {
   triggerHaptic(20);
   
   if (editId) {
-    const item = state.stocks.find(x => x.id === editId);
+    const item = state.stocks.find(x => String(x.id) === editId);
     if (item) {
       item.name = name;
       item.mainCategory = mainCategory;
@@ -1228,6 +1291,18 @@ stockForm.addEventListener('submit', (e) => {
   saveState();
   closeAddEditModal();
 });
+
+// Quick Manage Categories button in Add Stock modal
+const quickManageCategoriesBtn = document.getElementById('quickManageCategoriesBtn');
+if (quickManageCategoriesBtn) {
+  quickManageCategoriesBtn.addEventListener('click', () => {
+    triggerHaptic(20);
+    newTypeNameInput.value = '';
+    renderTypesList();
+    typesModal.classList.remove('hidden');
+    typesModal.setAttribute('aria-hidden', 'false');
+  });
+}
 
 // Trigger modal closing on background tap
 document.querySelectorAll('.modal-overlay').forEach(overlay => {

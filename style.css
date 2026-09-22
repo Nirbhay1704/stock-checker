@@ -897,12 +897,64 @@ h1, h2, h3, h4 {
   font-family: var(--font-sans);
   font-size: 1rem;
   transition: all var(--transition-fast);
+  width: 100%;
 }
 
 .form-group input[type="text"]:focus {
   outline: none;
   border-color: var(--border-focus);
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.form-group .select-wrapper,
+.form-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.form-group .select-wrapper select,
+.form-select-wrapper select {
+  width: 100%;
+  display: block;
+  padding: 0.75rem 2.5rem 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: all var(--transition-fast);
+}
+
+.form-group .select-wrapper select:focus,
+.form-select-wrapper select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.link-action-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+}
+
+.link-action-btn:hover {
+  background-color: var(--accent-light);
+  color: var(--accent);
 }
 
 .form-row {
@@ -1546,6 +1598,40 @@ h1, h2, h3, h4 {
   color: var(--danger);
   border-color: var(--danger);
   background-color: var(--danger-light);
+}
+
+/* Category Inline Edit Form */
+.category-edit-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.category-rename-input {
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: var(--font-sans);
+  font-weight: 500;
+}
+
+.category-rename-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
 }
 
 /* Category Badge on Stock Cards */

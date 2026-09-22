@@ -48,8 +48,8 @@
           <i data-lucide="moon" class="theme-icon-dark"></i>
           <i data-lucide="sun" class="theme-icon-light hidden"></i>
         </button>
-        <button id="manageTypesBtn" class="btn btn-secondary btn-icon-only-mobile" title="Manage Stock Types">
-          <i data-lucide="tag"></i> <span class="btn-text">Types</span>
+        <button id="manageTypesBtn" class="btn btn-secondary btn-icon-only-mobile" title="Manage Categories">
+          <i data-lucide="tag"></i> <span class="btn-text">Categories</span>
         </button>
         <button id="lessStockBtn" class="btn btn-secondary btn-icon-only-mobile" title="Low Stock Report">
           <i data-lucide="alert-triangle"></i> <span class="btn-text">Less Stock</span>
@@ -202,10 +202,15 @@
       <form id="stockForm" novalidate>
         <input type="hidden" id="stockId">
         
-        <!-- Main Category Dropdown -->
+        <!-- Main Category Dropdown with Quick Manage Button -->
         <div class="form-group">
-          <label for="stockMainCategoryInput">Main Category</label>
-          <div class="select-wrapper">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.15rem;">
+            <label for="stockMainCategoryInput" style="margin-bottom: 0;">Main Category</label>
+            <button type="button" id="quickManageCategoriesBtn" class="link-action-btn" title="Add or Edit Categories">
+              <i data-lucide="plus-circle" style="width: 14px; height: 14px;"></i> <span>+ Add/Edit Category</span>
+            </button>
+          </div>
+          <div class="select-wrapper form-select-wrapper">
             <select id="stockMainCategoryInput" required>
               <!-- Populated dynamically via JS: Spun, Lichi, Champion, etc. -->
             </select>
@@ -384,6 +389,6 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Service Worker Registration & App JavaScript -->
-  <script src="app.js?v=32"></script>
+  <script src="app.js?v=33"></script>
 </body>
 </html>
