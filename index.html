@@ -116,9 +116,15 @@
         </button>
       </div>
       <div class="filter-actions">
-        <div class="select-wrapper">
-          <select id="typeFilterSelect" aria-label="Filter items by stock type">
-            <option value="all">All Types</option>
+        <div class="select-wrapper" id="mainCatFilterWrapper">
+          <select id="mainCategoryFilterSelect" aria-label="Filter items by main category">
+            <option value="all">All Categories</option>
+          </select>
+          <i data-lucide="chevron-down" class="select-arrow"></i>
+        </div>
+        <div class="select-wrapper" id="typeFilterWrapper">
+          <select id="typeFilterSelect" aria-label="Filter items by color or type">
+            <option value="all">All Colors</option>
           </select>
           <i data-lucide="chevron-down" class="select-arrow"></i>
         </div>
@@ -159,10 +165,10 @@
         <div class="col-actions">Actions</div>
       </div>
 
-      <!-- Empty State -->
+      <!-- Empty State View -->
       <div id="emptyState" class="empty-state hidden">
         <div class="empty-icon">
-          <i data-lucide="clipboard-list"></i>
+          <i data-lucide="package-search"></i>
         </div>
         <h3>No Stock Items Found</h3>
         <p>Start by adding some stock items to track your daily inventory.</p>
@@ -201,20 +207,33 @@
       </div>
       <form id="stockForm" novalidate>
         <input type="hidden" id="stockId">
-        <div class="form-group">
-          <label for="stockNameInput">Stock Name</label>
-          <input type="text" id="stockNameInput" placeholder="e.g. Coca Cola 330ml" required autocomplete="off">
-          <span class="error-msg" id="nameError">Stock name is required</span>
-        </div>
         
-        <div class="form-group">
-          <label for="stockTypeInput">Stock Type</label>
-          <div class="select-wrapper">
-            <select id="stockTypeInput" required>
-              <!-- Populated dynamically via JS -->
-            </select>
-            <i data-lucide="chevron-down" class="select-arrow"></i>
+        <!-- Category & Sub-Category Row -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="stockMainCategoryInput">Main Category</label>
+            <div class="select-wrapper">
+              <select id="stockMainCategoryInput" required>
+                <!-- Populated dynamically via JS: Spun, Lichi, Champion, etc. -->
+              </select>
+              <i data-lucide="chevron-down" class="select-arrow"></i>
+            </div>
           </div>
+          <div class="form-group">
+            <label for="stockTypeInput">Color of Yarn / Sub-Type</label>
+            <div class="select-wrapper">
+              <select id="stockTypeInput" required>
+                <!-- Populated dynamically based on selected main category -->
+              </select>
+              <i data-lucide="chevron-down" class="select-arrow"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="stockNameInput">Stock Name / Shade No.</label>
+          <input type="text" id="stockNameInput" placeholder="e.g. Spun Red or Shade 102" required autocomplete="off">
+          <span class="error-msg" id="nameError">Stock name is required</span>
         </div>
         
         <div class="form-row">
@@ -315,31 +334,31 @@
     </div>
   </div>
 
-  <!-- MANAGE STOCK TYPES MODAL -->
+  <!-- MANAGE STOCK TYPES & CATEGORIES MODAL -->
   <div id="typesModal" class="modal-overlay hidden" aria-hidden="true" role="dialog">
-    <div class="modal-card">
+    <div class="modal-card modal-large" style="max-width: 640px;">
       <div class="modal-header">
-        <h2>Manage Stock Types</h2>
+        <h2>Manage Categories & Colors</h2>
         <button class="modal-close-btn" aria-label="Close modal">
           <i data-lucide="x"></i>
         </button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">Create or delete stock categories to organize your inventory.</p>
+        <p class="modal-desc">Organize Main Categories (e.g., <strong>Spun</strong>, <strong>Lichi</strong>, <strong>Champion</strong>) and their yarn colors/sub-types.</p>
         
-        <!-- Add stock type form -->
-        <form id="addTypeForm" style="display: flex; align-items: flex-end; gap: 0.75rem; margin-bottom: 1rem;">
+        <!-- Add new Main Category form -->
+        <form id="addTypeForm" style="display: flex; align-items: flex-end; gap: 0.75rem; margin-bottom: 1.25rem;">
           <div class="form-group" style="margin-bottom: 0; flex: 1;">
-            <label for="newTypeNameInput">New Stock Type</label>
-            <input type="text" id="newTypeNameInput" placeholder="e.g. Beverages" required autocomplete="off" style="width: 100%; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); font-family: var(--font-sans);">
+            <label for="newTypeNameInput">Add New Main Category</label>
+            <input type="text" id="newTypeNameInput" placeholder="e.g. Spun, Lichi, Champion..." required autocomplete="off" style="width: 100%; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); font-family: var(--font-sans);">
           </div>
-          <button type="submit" class="btn btn-primary" style="height: 48px; padding: 0 1.25rem;">Add</button>
+          <button type="submit" class="btn btn-primary" style="height: 48px; padding: 0 1.25rem;">+ Add Category</button>
         </form>
         
-        <!-- Types List -->
+        <!-- Main Categories with nested Colors/Sub-types List -->
         <div class="form-group">
-          <label>Existing Stock Types</label>
-          <div id="typesListContainer" class="types-list-container">
+          <label>Categories & Yarn Colors</label>
+          <div id="typesListContainer" class="main-cats-container">
             <!-- Rendered dynamically in JS -->
           </div>
         </div>
@@ -382,6 +401,6 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Service Worker Registration & App JavaScript -->
-  <script src="app.js?v=30"></script>
+  <script src="app.js?v=31"></script>
 </body>
 </html>

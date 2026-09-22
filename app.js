@@ -2,13 +2,30 @@
  * Stock Checker Pro - Core Application Logic
  */
 
+// --- Default Preloaded Categories & Yarn Colors ---
+const DEFAULT_MAIN_CATEGORIES = [
+  {
+    name: 'Spun',
+    subTypes: ['Red', 'Black', 'White', 'Navy Blue', 'Maroon', 'Gold', 'Green', 'Yellow', 'Pink', 'Grey', 'Orange', 'Rani', 'Rama', 'Firozi', 'Pista', 'Bottle Green', 'Wine', 'Silver', 'Copper']
+  },
+  {
+    name: 'Lichi',
+    subTypes: ['Red', 'Black', 'White', 'Navy Blue', 'Maroon', 'Gold', 'Green', 'Yellow', 'Pink', 'Grey', 'Orange', 'Rani', 'Rama', 'Firozi', 'Pista', 'Bottle Green', 'Wine', 'Silver', 'Copper']
+  },
+  {
+    name: 'Champion',
+    subTypes: ['Red', 'Black', 'White', 'Navy Blue', 'Maroon', 'Gold', 'Green', 'Yellow', 'Pink', 'Grey', 'Orange', 'Rani', 'Rama', 'Firozi', 'Pista', 'Bottle Green', 'Wine', 'Silver', 'Copper']
+  }
+];
+
 // --- Application State ---
 let state = {
   stocks: [],
-  stockTypes: [], // User-defined categories
+  mainCategories: [], // [{ name: 'Spun', subTypes: [...] }]
   searchQuery: '',
   filter: 'all', // availability filter
-  typeFilter: 'all', // category filter
+  mainCategoryFilter: 'all', // main category filter
+  typeFilter: 'all', // color / sub-type filter
   theme: 'dark',
   useFirebase: false,
   db: null,
@@ -27,8 +44,11 @@ const lowStockListContainer = document.getElementById('lowStockListContainer');
 const copyLowStockBtn = document.getElementById('copyLowStockBtn');
 const searchInput = document.getElementById('searchInput');
 const clearSearchBtn = document.getElementById('clearSearchBtn');
-const filterSelect = document.getElementById('filterSelect');
+const mainCategoryFilterSelect = document.getElementById('mainCategoryFilterSelect');
+const mainCatFilterWrapper = document.getElementById('mainCatFilterWrapper');
 const typeFilterSelect = document.getElementById('typeFilterSelect');
+const typeFilterWrapper = document.getElementById('typeFilterWrapper');
+const filterSelect = document.getElementById('filterSelect');
 const sortSelect = document.getElementById('sortSelect');
 const addStockBtn = document.getElementById('addStockBtn');
 const mobileFabAddBtn = document.getElementById('mobileFabAddBtn');
@@ -47,8 +67,9 @@ const stockModal = document.getElementById('stockModal');
 const stockForm = document.getElementById('stockForm');
 const modalTitle = document.getElementById('modalTitle');
 const stockIdInput = document.getElementById('stockId');
-const stockNameInput = document.getElementById('stockNameInput');
+const stockMainCategoryInput = document.getElementById('stockMainCategoryInput');
 const stockTypeInput = document.getElementById('stockTypeInput');
+const stockNameInput = document.getElementById('stockNameInput');
 const stockFullInput = document.getElementById('stockFullInput');
 const stockHalfInput = document.getElementById('stockHalfInput');
 const nameError = document.getElementById('nameError');
@@ -153,36 +174,51 @@ themeToggleBtn.addEventListener('click', () => {
 // --- State Storage & Syncing ---
 function loadState() {
   try {
-    // Load Stock Types first
-    const savedTypes = localStorage.getItem('stockTypes');
-    if (savedTypes) {
-      state.stockTypes = JSON.parse(savedTypes);
+    // 1. Load Main Categories & Sub-types
+    const savedCategories = localStorage.getItem('mainCategories');
+    if (savedCategories) {
+      state.mainCategories = JSON.parse(savedCategories);
     } else {
-      state.stockTypes = [];
-      localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+      // Check if we have legacy stockTypes to migrate
+      const legacyTypes = localStorage.getItem('stockTypes');
+      if (legacyTypes && JSON.parse(legacyTypes).length > 0) {
+        const parsed = JSON.parse(legacyTypes);
+        state.mainCategories = [
+          ...DEFAULT_MAIN_CATEGORIES,
+          { name: 'Custom Quality', subTypes: parsed }
+        ];
+      } else {
+        state.mainCategories = JSON.parse(JSON.stringify(DEFAULT_MAIN_CATEGORIES));
+      }
+      localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
     }
 
-    // Load Stock List
+    // 2. Load Stock List
     const savedStocks = localStorage.getItem('stocks');
     if (savedStocks) {
       state.stocks = JSON.parse(savedStocks);
+      // Ensure all items have mainCategory set
+      state.stocks.forEach(item => {
+        if (!item.mainCategory) {
+          item.mainCategory = 'Spun';
+        }
+      });
     } else {
-      // Load sample data if empty
+      // Initial sample data for yarn qualities
       state.stocks = [
-        { id: '1', name: 'Premium Lager (24x330ml)', type: '', fullBoxes: 5, halfBoxes: 2, updatedAt: new Date().toISOString(), checked: false },
-        { id: '2', name: 'Cola Zero (24x330ml)', type: '', fullBoxes: 12, halfBoxes: 1, updatedAt: new Date().toISOString(), checked: false },
-        { id: '3', name: 'Energy Soda (12x250ml)', type: '', fullBoxes: 0, halfBoxes: 3, updatedAt: new Date().toISOString(), checked: false },
-        { id: '4', name: 'Orange Juice Box (10x1L)', type: '', fullBoxes: 0, halfBoxes: 0, updatedAt: new Date().toISOString(), checked: false }
+        { id: '1', name: 'Spun Red', mainCategory: 'Spun', type: 'Red', fullBoxes: 5, halfBoxes: 2, updatedAt: new Date().toISOString(), checked: false },
+        { id: '2', name: 'Spun Black', mainCategory: 'Spun', type: 'Black', fullBoxes: 12, halfBoxes: 1, updatedAt: new Date().toISOString(), checked: false },
+        { id: '3', name: 'Lichi Gold', mainCategory: 'Lichi', type: 'Gold', fullBoxes: 4, halfBoxes: 0, updatedAt: new Date().toISOString(), checked: false },
+        { id: '4', name: 'Champion Maroon', mainCategory: 'Champion', type: 'Maroon', fullBoxes: 0, halfBoxes: 2, updatedAt: new Date().toISOString(), checked: false }
       ];
       localStorage.setItem('stocks', JSON.stringify(state.stocks));
     }
 
-    // Load Last Updated Timestamp
+    // 3. Load Last Updated Timestamp
     const savedUpdatedAt = localStorage.getItem('stateUpdatedAt');
     if (savedUpdatedAt) {
       state.updatedAt = savedUpdatedAt;
     } else {
-      // Find the latest updatedAt among all stocks
       let maxTime = 0;
       if (state.stocks && state.stocks.length > 0) {
         state.stocks.forEach(item => {
@@ -276,7 +312,7 @@ function initFirebase() {
 }
 
 // Merge local and remote stock states based on updatedAt timestamps
-function mergeInventory(remoteStocks, remoteTypes, remoteUpdatedAt) {
+function mergeInventory(remoteStocks, remoteCategories, remoteUpdatedAt) {
   const remoteTime = new Date(remoteUpdatedAt || 0).getTime();
   const localTime = new Date(state.updatedAt || 0).getTime();
   
@@ -284,7 +320,7 @@ function mergeInventory(remoteStocks, remoteTypes, remoteUpdatedAt) {
   if (localTime >= remoteTime) {
     return {
       stocks: state.stocks,
-      stockTypes: state.stockTypes
+      mainCategories: state.mainCategories
     };
   }
   
@@ -303,11 +339,6 @@ function mergeInventory(remoteStocks, remoteTypes, remoteUpdatedAt) {
       } else {
         mergedStocks.push(localItem);
       }
-    } else {
-      // Item exists locally but is missing in the remote list.
-      // Since localTime < remoteTime (the remote state was saved AFTER our last local modification),
-      // and this item is missing remotely, it must have been deleted remotely.
-      // So we do NOT keep it locally (we delete it).
     }
   });
   
@@ -315,26 +346,22 @@ function mergeInventory(remoteStocks, remoteTypes, remoteUpdatedAt) {
   remoteStocks.forEach(remoteItem => {
     const existsLocally = state.stocks.some(item => item.id === remoteItem.id);
     if (!existsLocally) {
-      // Item exists remotely but not locally.
-      // Since localTime < remoteTime, was it deleted locally, or was it created remotely?
       const remoteItemTime = new Date(remoteItem.updatedAt || 0).getTime();
       if (remoteItemTime > localTime) {
-        // It was created or modified remotely AFTER our last local edit. Keep it!
         mergedStocks.push(remoteItem);
-      } else {
-        // It was created/modified remotely BEFORE our last local edit, but we don't have it.
-        // This means it was deleted locally. Do NOT resurrect it!
       }
     }
   });
   
-  // Merge categories (stock types)
-  // Since remoteTime > localTime, we accept the remote categories.
-  const mergedTypes = remoteTypes;
+  // Merge categories
+  let mergedCategories = state.mainCategories;
+  if (Array.isArray(remoteCategories) && remoteCategories.length > 0) {
+    mergedCategories = remoteCategories;
+  }
   
   return {
     stocks: mergedStocks,
-    stockTypes: mergedTypes
+    mainCategories: mergedCategories
   };
 }
 
@@ -352,20 +379,20 @@ function setupFirebaseListener() {
         const data = doc.data();
         if (data && Array.isArray(data.stocks)) {
           // Merge remote updates with local state instead of doing a blind overwrite
-          const merged = mergeInventory(data.stocks, data.stockTypes || [], data.updatedAt);
+          const merged = mergeInventory(data.stocks, data.mainCategories || data.stockTypes || [], data.updatedAt);
           
           const localStocksStr = JSON.stringify(state.stocks);
           const mergedStocksStr = JSON.stringify(merged.stocks);
-          const localTypesStr = JSON.stringify(state.stockTypes);
-          const mergedTypesStr = JSON.stringify(merged.stockTypes);
+          const localCatsStr = JSON.stringify(state.mainCategories);
+          const mergedCatsStr = JSON.stringify(merged.mainCategories);
           
-          if (localStocksStr !== mergedStocksStr || localTypesStr !== mergedTypesStr) {
+          if (localStocksStr !== mergedStocksStr || localCatsStr !== mergedCatsStr) {
             state.stocks = merged.stocks;
-            state.stockTypes = merged.stockTypes;
+            state.mainCategories = merged.mainCategories;
             state.updatedAt = data.updatedAt || new Date().toISOString();
             
             localStorage.setItem('stocks', JSON.stringify(state.stocks));
-            localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+            localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
             localStorage.setItem('stateUpdatedAt', state.updatedAt);
             
             populateTypeDropdowns();
@@ -397,7 +424,7 @@ async function autoSyncWithServer() {
   try {
     const payload = {
       stocks: state.stocks,
-      stockTypes: state.stockTypes,
+      mainCategories: state.mainCategories,
       updatedAt: state.updatedAt || new Date().toISOString()
     };
     
@@ -429,7 +456,7 @@ function saveState(stocksUpdated = true) {
   if (stocksUpdated) {
     state.updatedAt = new Date().toISOString();
     localStorage.setItem('stocks', JSON.stringify(state.stocks));
-    localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+    localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
     localStorage.setItem('stateUpdatedAt', state.updatedAt);
     
     // Auto-sync in background, debounced by 1 second to optimize requests
@@ -462,11 +489,13 @@ async function loadFromServer() {
           }
           
           state.stocks = data.stocks;
-          state.stockTypes = data.stockTypes || [];
+          if (Array.isArray(data.mainCategories)) {
+            state.mainCategories = data.mainCategories;
+          }
           state.updatedAt = data.updatedAt || new Date().toISOString();
           
           localStorage.setItem('stocks', JSON.stringify(state.stocks));
-          localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+          localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
           localStorage.setItem('stateUpdatedAt', state.updatedAt);
           
           populateTypeDropdowns();
@@ -509,14 +538,14 @@ async function loadFromServer() {
         }
         
         state.stocks = data.stocks;
-        if (Array.isArray(data.stockTypes)) {
-          state.stockTypes = data.stockTypes;
+        if (Array.isArray(data.mainCategories)) {
+          state.mainCategories = data.mainCategories;
         }
         state.updatedAt = data.updatedAt || new Date().toISOString();
         
         // Update local storage cache
         localStorage.setItem('stocks', JSON.stringify(state.stocks));
-        localStorage.setItem('stockTypes', JSON.stringify(state.stockTypes));
+        localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
         localStorage.setItem('stateUpdatedAt', state.updatedAt);
         
         populateTypeDropdowns();
@@ -552,7 +581,7 @@ async function syncWithServer() {
   try {
     const payload = {
       stocks: state.stocks,
-      stockTypes: state.stockTypes,
+      mainCategories: state.mainCategories,
       updatedAt: state.updatedAt || new Date().toISOString()
     };
     
@@ -624,56 +653,143 @@ function updateSyncStatus(isSynced) {
   }
 }
 
-// --- Stock Types Management ---
+// --- Main Categories & Yarn Colors Management ---
 function populateTypeDropdowns() {
-  const filterWrapper = typeFilterSelect.closest('.select-wrapper');
-  const formGroupWrapper = stockTypeInput.closest('.form-group');
+  if (!mainCategoryFilterSelect || !typeFilterSelect || !stockMainCategoryInput || !stockTypeInput) return;
+
+  const mainCategories = state.mainCategories || [];
   
-  if (state.stockTypes.length === 0) {
-    if (filterWrapper) filterWrapper.classList.add('hidden');
-    if (formGroupWrapper) formGroupWrapper.classList.add('hidden');
-    state.typeFilter = 'all';
-    return;
+  // 1. Populate Main Category Filter Dropdown in Toolbar
+  const currentMainFilter = state.mainCategoryFilter || 'all';
+  mainCategoryFilterSelect.innerHTML = '<option value="all">All Categories</option>';
+  mainCategories.forEach(cat => {
+    mainCategoryFilterSelect.innerHTML += `<option value="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</option>`;
+  });
+  mainCategoryFilterSelect.value = currentMainFilter;
+  if (!mainCategoryFilterSelect.value) {
+    mainCategoryFilterSelect.value = 'all';
+    state.mainCategoryFilter = 'all';
   }
-  
-  if (filterWrapper) filterWrapper.classList.remove('hidden');
-  if (formGroupWrapper) formGroupWrapper.classList.remove('hidden');
 
-  // 1. Populate Filter Dropdown in Toolbar
-  const currentFilterVal = typeFilterSelect.value || 'all';
-  typeFilterSelect.innerHTML = '<option value="all">All Types</option>';
-  state.stockTypes.forEach(type => {
-    typeFilterSelect.innerHTML += `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`;
-  });
-  typeFilterSelect.value = currentFilterVal;
-  if (!typeFilterSelect.value) typeFilterSelect.value = 'all';
+  // 2. Populate Sub-Category / Color Filter in Toolbar based on chosen Main Category
+  updateTypeFilterDropdown();
 
-  // 2. Populate Dropdown in Stock Editor Form
-  const currentEditVal = stockTypeInput.value || '';
-  stockTypeInput.innerHTML = '<option value="">(No Category)</option>';
-  state.stockTypes.forEach(type => {
-    stockTypeInput.innerHTML += `<option value="${escapeHtml(type)}">${escapeHtml(type)}</option>`;
+  // 3. Populate Main Category in Add/Edit Stock Form
+  const currentEditMainCat = stockMainCategoryInput.value || (mainCategories.length > 0 ? mainCategories[0].name : 'Spun');
+  stockMainCategoryInput.innerHTML = '';
+  mainCategories.forEach(cat => {
+    stockMainCategoryInput.innerHTML += `<option value="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</option>`;
   });
-  stockTypeInput.value = currentEditVal;
+  stockMainCategoryInput.value = currentEditMainCat;
+  if (!stockMainCategoryInput.value && mainCategories.length > 0) {
+    stockMainCategoryInput.value = mainCategories[0].name;
+  }
+
+  // 4. Populate Sub-Category / Color in Add/Edit Stock Form
+  updateStockFormSubtypeDropdown();
 }
 
+// Update the Sub-Category / Color filter dropdown based on current mainCategoryFilter
+function updateTypeFilterDropdown() {
+  const currentTypeFilter = state.typeFilter || 'all';
+  const mainCatFilter = state.mainCategoryFilter || 'all';
+  
+  let availableTypes = [];
+  if (mainCatFilter === 'all') {
+    const typeSet = new Set();
+    state.mainCategories.forEach(cat => {
+      (cat.subTypes || []).forEach(st => typeSet.add(st));
+    });
+    availableTypes = Array.from(typeSet);
+  } else {
+    const foundCat = state.mainCategories.find(c => c.name === mainCatFilter);
+    availableTypes = foundCat ? (foundCat.subTypes || []) : [];
+  }
+
+  typeFilterSelect.innerHTML = '<option value="all">All Colors</option>';
+  availableTypes.forEach(t => {
+    typeFilterSelect.innerHTML += `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`;
+  });
+  typeFilterSelect.value = currentTypeFilter;
+  if (!typeFilterSelect.value) {
+    typeFilterSelect.value = 'all';
+    state.typeFilter = 'all';
+  }
+}
+
+// Update Sub-Category dropdown in the Stock Add/Edit modal based on selected Main Category
+function updateStockFormSubtypeDropdown(selectedSubtype = '') {
+  const selectedMainCat = stockMainCategoryInput.value || (state.mainCategories[0] ? state.mainCategories[0].name : 'Spun');
+  const foundCat = state.mainCategories.find(c => c.name === selectedMainCat);
+  const subTypes = foundCat ? (foundCat.subTypes || []) : [];
+
+  stockTypeInput.innerHTML = '';
+  subTypes.forEach(st => {
+    stockTypeInput.innerHTML += `<option value="${escapeHtml(st)}">${escapeHtml(st)}</option>`;
+  });
+
+  if (selectedSubtype && subTypes.includes(selectedSubtype)) {
+    stockTypeInput.value = selectedSubtype;
+  } else if (subTypes.length > 0) {
+    stockTypeInput.value = subTypes[0];
+  }
+
+  // Auto-generate item name if adding new stock
+  const isEditing = Boolean(stockIdInput.value);
+  if (!isEditing && stockTypeInput.value) {
+    stockNameInput.value = `${selectedMainCat} ${stockTypeInput.value}`;
+  }
+}
+
+// Render the nested Category and Color management view in Types Modal
 function renderTypesList() {
-  if (state.stockTypes.length === 0) {
-    typesListContainer.innerHTML = '<p class="file-name-display" style="padding: 1rem;">No custom categories defined.</p>';
+  if (!typesListContainer) return;
+  const categories = state.mainCategories || [];
+  
+  if (categories.length === 0) {
+    typesListContainer.innerHTML = '<p class="file-name-display" style="padding: 1rem;">No categories defined. Use the form above to add one.</p>';
     return;
   }
 
-  typesListContainer.innerHTML = state.stockTypes.map(type => {
+  typesListContainer.innerHTML = categories.map((cat, catIdx) => {
+    const subTypes = cat.subTypes || [];
+    const colorCount = subTypes.length;
+
+    const chipsHtml = subTypes.map((st, stIdx) => `
+      <span class="sub-type-chip">
+        ${escapeHtml(st)}
+        <button type="button" class="sub-type-chip-delete" data-cat-idx="${catIdx}" data-sub-idx="${stIdx}" title="Remove color" aria-label="Remove color">
+          &times;
+        </button>
+      </span>
+    `).join('');
+
     return `
-      <div class="type-item">
-        <span>${escapeHtml(type)}</span>
-        <div class="type-item-actions">
-          <button class="icon-btn edit-type-btn" data-type="${escapeHtml(type)}" title="Rename Category" aria-label="Rename Category" style="margin-right: 0.25rem;">
-            <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
-          </button>
-          <button class="icon-btn delete-btn" data-type="${escapeHtml(type)}" title="Delete Category" aria-label="Delete Category">
-            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
-          </button>
+      <div class="main-cat-card" data-cat-name="${escapeHtml(cat.name)}">
+        <div class="main-cat-header">
+          <div class="main-cat-info">
+            <span class="main-cat-name">${escapeHtml(cat.name)}</span>
+            <span class="main-cat-badge">${colorCount} ${colorCount === 1 ? 'color' : 'colors'}</span>
+          </div>
+          <div class="main-cat-actions">
+            <button type="button" class="icon-btn rename-cat-btn" data-cat-name="${escapeHtml(cat.name)}" title="Rename Category" aria-label="Rename Category">
+              <i data-lucide="pencil" style="width: 14px; height: 14px;"></i>
+            </button>
+            <button type="button" class="icon-btn delete-btn delete-cat-btn" data-cat-name="${escapeHtml(cat.name)}" title="Delete Category" aria-label="Delete Category">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="sub-types-wrapper">
+          <div class="sub-type-chips">
+            ${chipsHtml.length > 0 ? chipsHtml : '<span style="font-size:0.75rem; color:var(--text-muted); font-style:italic;">No colors added yet.</span>'}
+          </div>
+
+          <form class="add-subtype-form" data-cat-idx="${catIdx}">
+            <input type="text" class="add-subtype-input" placeholder="Add yarn color (e.g. Red, Rani, Gold...)" required autocomplete="off">
+            <button type="submit" class="add-subtype-btn">+ Add Color</button>
+          </form>
         </div>
       </div>
     `;
@@ -681,104 +797,150 @@ function renderTypesList() {
 
   lucide.createIcons();
 
-  // Attach rename listeners
-  typesListContainer.querySelectorAll('.edit-type-btn').forEach(btn => {
+  // Bind Rename Main Category buttons
+  typesListContainer.querySelectorAll('.rename-cat-btn').forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
       triggerHaptic(20);
-      const typeToRename = btn.dataset.type;
-      renameStockType(typeToRename);
+      const catName = btn.dataset.catName;
+      renameMainCategory(catName);
     };
   });
 
-  // Attach delete listeners
-  typesListContainer.querySelectorAll('.delete-btn').forEach(btn => {
+  // Bind Delete Main Category buttons
+  typesListContainer.querySelectorAll('.delete-cat-btn').forEach(btn => {
     btn.onclick = (e) => {
       e.stopPropagation();
       triggerHaptic(25);
-      const typeToDelete = btn.dataset.type;
-      deleteStockType(typeToDelete);
+      const catName = btn.dataset.catName;
+      deleteMainCategory(catName);
+    };
+  });
+
+  // Bind Remove Subtype / Color chip buttons
+  typesListContainer.querySelectorAll('.sub-type-chip-delete').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      triggerHaptic(15);
+      const catIdx = parseInt(btn.dataset.catIdx, 10);
+      const subIdx = parseInt(btn.dataset.subIdx, 10);
+      deleteSubtypeFromCategory(catIdx, subIdx);
+    };
+  });
+
+  // Bind Add Subtype inline forms
+  typesListContainer.querySelectorAll('.add-subtype-form').forEach(form => {
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const catIdx = parseInt(form.dataset.catIdx, 10);
+      const input = form.querySelector('.add-subtype-input');
+      const newSubtype = input.value.trim();
+      if (!newSubtype) return;
+
+      addSubtypeToCategory(catIdx, newSubtype);
+      input.value = '';
+      input.focus();
     };
   });
 }
 
-function renameStockType(oldName) {
-  const newName = prompt(`Enter a new name for the category "${oldName}":`, oldName);
-  if (newName === null) return; // User cancelled
-  
-  const trimmedNewName = newName.trim();
-  if (!trimmedNewName) {
-    showToast('Category name cannot be empty.', 'error');
+// Add a new Sub-type / Color to a Main Category
+function addSubtypeToCategory(catIdx, colorName) {
+  if (!state.mainCategories[catIdx]) return;
+  const cat = state.mainCategories[catIdx];
+  if (!cat.subTypes) cat.subTypes = [];
+
+  const exists = cat.subTypes.some(st => st.toLowerCase() === colorName.toLowerCase());
+  if (exists) {
+    showToast(`Color "${colorName}" already exists in ${cat.name}.`, 'error');
     return;
   }
-  
-  if (trimmedNewName.toLowerCase() === oldName.toLowerCase()) {
-    if (trimmedNewName === oldName) return; // No change
-  }
-  
-  // Check duplicates
-  const isDuplicate = state.stockTypes.some(t => t.toLowerCase() === trimmedNewName.toLowerCase() && t !== oldName);
-  if (isDuplicate) {
-    showToast(`A category named "${trimmedNewName}" already exists.`, 'error');
-    return;
-  }
-  
-  // 1. Rename in state.stockTypes
-  const typeIndex = state.stockTypes.indexOf(oldName);
-  if (typeIndex !== -1) {
-    state.stockTypes[typeIndex] = trimmedNewName;
-  }
-  
-  // 2. Rename in all stocks that belong to oldName
-  let affectedCount = 0;
-  state.stocks.forEach(item => {
-    if (item.type === oldName) {
-      item.type = trimmedNewName;
-      item.updatedAt = new Date().toISOString();
-      affectedCount++;
-    }
-  });
-  
-  // Save, re-render, and notify
+
+  triggerHaptic(15);
+  cat.subTypes.push(colorName);
   saveState();
   populateTypeDropdowns();
   renderTypesList();
-  
-  // Force immediate sync to server to prevent reload races
   syncWithServer();
-  
-  let msg = `Renamed category "${oldName}" to "${trimmedNewName}".`;
-  if (affectedCount > 0) {
-    msg += ` Updated ${affectedCount} stock items.`;
-  }
-  showToast(msg);
+  showToast(`Added "${colorName}" to ${cat.name}.`);
 }
 
-function deleteStockType(typeToDelete) {
-  const affectedCount = state.stocks.filter(item => item.type === typeToDelete).length;
-  let confirmMsg = `Are you sure you want to delete the category "${typeToDelete}"?`;
+// Delete a Sub-type / Color from a Main Category
+function deleteSubtypeFromCategory(catIdx, subIdx) {
+  if (!state.mainCategories[catIdx]) return;
+  const cat = state.mainCategories[catIdx];
+  const colorName = cat.subTypes[subIdx];
+
+  cat.subTypes.splice(subIdx, 1);
+  saveState();
+  populateTypeDropdowns();
+  renderTypesList();
+  syncWithServer();
+  showToast(`Removed "${colorName}" from ${cat.name}.`);
+}
+
+// Rename a Main Category
+function renameMainCategory(oldName) {
+  const newName = prompt(`Enter a new name for Main Category "${oldName}":`, oldName);
+  if (newName === null) return;
+  const trimmed = newName.trim();
+  if (!trimmed) {
+    showToast('Category name cannot be empty.', 'error');
+    return;
+  }
+  if (trimmed.toLowerCase() === oldName.toLowerCase() && trimmed === oldName) return;
+
+  const isDuplicate = state.mainCategories.some(c => c.name.toLowerCase() === trimmed.toLowerCase() && c.name !== oldName);
+  if (isDuplicate) {
+    showToast(`Category "${trimmed}" already exists.`, 'error');
+    return;
+  }
+
+  const cat = state.mainCategories.find(c => c.name === oldName);
+  if (cat) cat.name = trimmed;
+
+  // Update in existing stock items
+  let count = 0;
+  state.stocks.forEach(item => {
+    if (item.mainCategory === oldName) {
+      item.mainCategory = trimmed;
+      item.updatedAt = new Date().toISOString();
+      count++;
+    }
+  });
+
+  saveState();
+  populateTypeDropdowns();
+  renderTypesList();
+  syncWithServer();
+  showToast(`Renamed "${oldName}" to "${trimmed}". Updated ${count} stock items.`);
+}
+
+// Delete a Main Category
+function deleteMainCategory(catName) {
+  const affectedCount = state.stocks.filter(item => item.mainCategory === catName).length;
+  let confirmMsg = `Are you sure you want to delete category "${catName}" and all its colors?`;
   if (affectedCount > 0) {
-    confirmMsg += `\nWarning: ${affectedCount} stock items belong to this category and will become uncategorized.`;
+    confirmMsg += `\nWarning: ${affectedCount} stock items belong to this category.`;
   }
 
   if (confirm(confirmMsg)) {
-    // Reassign items
+    state.mainCategories = state.mainCategories.filter(c => c.name !== catName);
+    
+    // Set fallback on affected stocks
+    const fallbackCat = state.mainCategories.length > 0 ? state.mainCategories[0].name : '';
     state.stocks.forEach(item => {
-      if (item.type === typeToDelete) {
-        item.type = '';
+      if (item.mainCategory === catName) {
+        item.mainCategory = fallbackCat;
         item.updatedAt = new Date().toISOString();
       }
     });
 
-    state.stockTypes = state.stockTypes.filter(t => t !== typeToDelete);
     saveState();
     populateTypeDropdowns();
     renderTypesList();
-    
-    // Force immediate sync to server to prevent reload races
     syncWithServer();
-    
-    showToast(`Category "${typeToDelete}" deleted.`);
+    showToast(`Category "${catName}" deleted.`);
   }
 }
 
@@ -820,13 +982,20 @@ function animateValueUpdate(element, newValue) {
 function renderStockList() {
   const query = state.searchQuery.toLowerCase().trim();
   const filter = state.filter;
+  const mainCatFilter = state.mainCategoryFilter;
   const typeFilter = state.typeFilter;
   
   const filtered = state.stocks.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(query);
+    const matchesSearch = item.name.toLowerCase().includes(query) || 
+                          (item.mainCategory && item.mainCategory.toLowerCase().includes(query)) ||
+                          (item.type && item.type.toLowerCase().includes(query));
     const hasInventory = item.fullBoxes > 0 || item.halfBoxes > 0;
     
-    // Check type filter
+    // Check main category filter
+    const matchesMainCat = mainCatFilter === 'all' || (item.mainCategory || '') === mainCatFilter;
+    if (!matchesMainCat) return false;
+
+    // Check type/color filter
     const matchesType = typeFilter === 'all' || (item.type || '') === typeFilter;
     if (!matchesType) return false;
     
@@ -861,10 +1030,9 @@ function renderStockList() {
   if (filtered.length === 0) {
     stockItemsList.innerHTML = '';
     emptyState.classList.remove('hidden');
-    // If we have items in total but none match search, customize text
     if (state.stocks.length > 0) {
       emptyState.querySelector('h3').textContent = 'No Matches Found';
-      emptyState.querySelector('p').textContent = `No stock items match your search or filter configuration.`;
+      emptyState.querySelector('p').textContent = `No stock items match your search or category filter.`;
       emptyStateAddBtn.classList.add('hidden');
     } else {
       emptyState.querySelector('h3').textContent = 'No Stock Items Found';
@@ -885,8 +1053,8 @@ function renderStockList() {
     stockItemsList.innerHTML = filtered.map(item => {
       const equiv = (item.fullBoxes + item.halfBoxes * 0.5).toFixed(1);
       const isInStock = item.fullBoxes > 0 || item.halfBoxes > 0;
+      const itemMainCat = item.mainCategory || 'Spun';
       const itemType = item.type || '';
-      const showTypeBadge = state.stockTypes.length > 0 && itemType !== '';
       
       return `
         <div class="stock-item ${item.checked ? 'checked' : ''}" data-id="${item.id}" role="listitem">
@@ -900,12 +1068,13 @@ function renderStockList() {
             <!-- Column 1: Stock Name and badges -->
             <div class="stock-name-wrapper">
               <span class="stock-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
-              <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.2rem; flex-wrap: wrap;">
+              <div style="display: flex; gap: 0.35rem; align-items: center; margin-top: 0.25rem; flex-wrap: wrap;">
                 ${isInStock 
                   ? `<span class="stock-badge-active">In Stock</span>` 
                   : `<span class="stock-badge-low">Out of Stock</span>`
                 }
-                ${showTypeBadge 
+                <span class="stock-badge-main-cat">${escapeHtml(itemMainCat)}</span>
+                ${itemType 
                   ? `<span class="stock-badge-type">${escapeHtml(itemType)}</span>` 
                   : ''
                 }
@@ -970,13 +1139,17 @@ function attachListEventListeners() {
   
   // Select All handler (header checkbox)
   if (selectAllStock) {
-    // Determine the filtered items
     const query = state.searchQuery.toLowerCase().trim();
     const filter = state.filter;
+    const mainCatFilter = state.mainCategoryFilter;
     const typeFilter = state.typeFilter;
     const filtered = state.stocks.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(query);
+      const matchesSearch = item.name.toLowerCase().includes(query) || 
+                            (item.mainCategory && item.mainCategory.toLowerCase().includes(query)) ||
+                            (item.type && item.type.toLowerCase().includes(query));
       const hasInventory = item.fullBoxes > 0 || item.halfBoxes > 0;
+      const matchesMainCat = mainCatFilter === 'all' || (item.mainCategory || '') === mainCatFilter;
+      if (!matchesMainCat) return false;
       const matchesType = typeFilter === 'all' || (item.type || '') === typeFilter;
       if (!matchesType) return false;
       if (filter === 'inStock') return matchesSearch && hasInventory;
@@ -1015,7 +1188,6 @@ function attachListEventListeners() {
             element.classList.remove('checked');
           }
           
-          // Re-evaluate select all state without full re-render for performance
           if (selectAllStock) {
             const allChecked = Array.from(stockElements).every(el => {
               const cb = el.querySelector('.stock-checkbox');
@@ -1103,15 +1275,19 @@ function openAddEditModal(editId = null) {
     if (!item) return;
     modalTitle.textContent = 'Edit Stock Item';
     stockIdInput.value = item.id;
+    stockMainCategoryInput.value = item.mainCategory || (state.mainCategories[0] ? state.mainCategories[0].name : 'Spun');
+    updateStockFormSubtypeDropdown(item.type || '');
     stockNameInput.value = item.name;
-    stockTypeInput.value = item.type || '';
     stockFullInput.value = item.fullBoxes;
     stockHalfInput.value = item.halfBoxes;
   } else {
     modalTitle.textContent = 'Add Stock Item';
     stockIdInput.value = '';
     stockForm.reset();
-    stockTypeInput.value = '';
+    if (state.mainCategories.length > 0) {
+      stockMainCategoryInput.value = state.mainCategories[0].name;
+    }
+    updateStockFormSubtypeDropdown();
     stockFullInput.value = 0;
     stockHalfInput.value = 0;
   }
@@ -1148,13 +1324,14 @@ function resetFormErrors() {
   stockNameInput.classList.remove('input-error');
 }
 
-// Submit Form (Save)
+// Submit Form (Save Stock)
 stockForm.addEventListener('submit', (e) => {
   e.preventDefault();
   resetFormErrors();
   
-  const name = stockNameInput.value.trim();
-  const type = state.stockTypes.length > 0 ? (stockTypeInput.value || '') : '';
+  const mainCategory = stockMainCategoryInput.value || (state.mainCategories[0] ? state.mainCategories[0].name : 'Spun');
+  const type = stockTypeInput.value || '';
+  const name = stockNameInput.value.trim() || `${mainCategory} ${type}`;
   const full = parseInt(stockFullInput.value, 10) || 0;
   const half = parseInt(stockHalfInput.value, 10) || 0;
   const editId = stockIdInput.value;
@@ -1166,15 +1343,16 @@ stockForm.addEventListener('submit', (e) => {
     return;
   }
   
-  // Check duplicates (same name AND same stock type, excluding editing item)
+  // Duplicate Check
   const isDuplicate = state.stocks.some(item => 
     item.name.toLowerCase() === name.toLowerCase() && 
+    (item.mainCategory || '') === mainCategory && 
     (item.type || '') === type && 
     item.id !== editId
   );
   
   if (isDuplicate) {
-    nameError.textContent = 'A stock item with this name and category already exists';
+    nameError.textContent = 'A stock item with this name, category, and color already exists';
     nameError.classList.add('visible');
     stockNameInput.classList.add('input-error');
     stockNameInput.focus();
@@ -1184,10 +1362,10 @@ stockForm.addEventListener('submit', (e) => {
   triggerHaptic(20);
   
   if (editId) {
-    // Edit existing
     const item = state.stocks.find(x => x.id === editId);
     if (item) {
       item.name = name;
+      item.mainCategory = mainCategory;
       item.type = type;
       item.fullBoxes = Math.max(0, full);
       item.halfBoxes = Math.max(0, half);
@@ -1195,10 +1373,10 @@ stockForm.addEventListener('submit', (e) => {
       showToast(`Updated "${name}"`);
     }
   } else {
-    // Create new
     const newItem = {
       id: generateId(),
       name: name,
+      mainCategory: mainCategory,
       type: type,
       fullBoxes: Math.max(0, full),
       halfBoxes: Math.max(0, half),
@@ -1211,6 +1389,19 @@ stockForm.addEventListener('submit', (e) => {
   
   saveState();
   closeAddEditModal();
+});
+
+// Main Category change in Add/Edit modal updates Color dropdown
+stockMainCategoryInput.addEventListener('change', () => {
+  updateStockFormSubtypeDropdown();
+});
+
+// Color change in Add/Edit modal updates item name if new item
+stockTypeInput.addEventListener('change', () => {
+  const isEditing = Boolean(stockIdInput.value);
+  if (!isEditing && stockTypeInput.value) {
+    stockNameInput.value = `${stockMainCategoryInput.value} ${stockTypeInput.value}`;
+  }
 });
 
 // Trigger modal closing on background tap
@@ -1244,7 +1435,7 @@ backupRestoreBtn.addEventListener('click', () => {
   backupModal.setAttribute('aria-hidden', 'false');
 });
 
-// Open Stock Types Modal
+// Open Stock Types & Categories Modal
 manageTypesBtn.addEventListener('click', () => {
   triggerHaptic(20);
   newTypeNameInput.value = '';
@@ -1269,12 +1460,11 @@ copyLowStockBtn.addEventListener('click', () => {
     return equiv <= 1;
   });
   
-  // Sort by Stock Type first, then by Name
   lowStockItems.sort((a, b) => {
-    const typeA = a.type || 'Uncategorized';
-    const typeB = b.type || 'Uncategorized';
-    const typeCompare = typeA.localeCompare(typeB);
-    if (typeCompare !== 0) return typeCompare;
+    const catA = a.mainCategory || 'General';
+    const catB = b.mainCategory || 'General';
+    const catCompare = catA.localeCompare(catB);
+    if (catCompare !== 0) return catCompare;
     return a.name.localeCompare(b.name);
   });
   
@@ -1284,17 +1474,16 @@ copyLowStockBtn.addEventListener('click', () => {
   let reportText = `⚠️ LOW STOCK REPORT (${dateStr})\n`;
   reportText += `------------------------------------\n`;
   
-  // Group by category in the text report for cleaner readability
   let currentGroup = '';
   lowStockItems.forEach(item => {
     const equiv = item.fullBoxes + (item.halfBoxes * 0.5);
-    const typeLabel = item.type ? item.type : 'Uncategorized';
+    const catLabel = item.mainCategory ? item.mainCategory : 'General';
     
-    if (typeLabel !== currentGroup) {
-      currentGroup = typeLabel;
+    if (catLabel !== currentGroup) {
+      currentGroup = catLabel;
       reportText += `\n📁 ${currentGroup.toUpperCase()}\n`;
     }
-    reportText += `• ${item.name}: ${equiv.toFixed(1)} boxes\n`;
+    reportText += `• ${item.name} (${item.type || 'Color'}): ${equiv.toFixed(1)} boxes\n`;
   });
   
   navigator.clipboard.writeText(reportText)
@@ -1313,12 +1502,11 @@ function generateLowStockReport() {
     return equiv <= 1;
   });
   
-  // Sort by Stock Type first, then by Name
   lowStockItems.sort((a, b) => {
-    const typeA = a.type || 'Uncategorized';
-    const typeB = b.type || 'Uncategorized';
-    const typeCompare = typeA.localeCompare(typeB);
-    if (typeCompare !== 0) return typeCompare;
+    const catA = a.mainCategory || 'General';
+    const catB = b.mainCategory || 'General';
+    const catCompare = catA.localeCompare(catB);
+    if (catCompare !== 0) return catCompare;
     return a.name.localeCompare(b.name);
   });
   
@@ -1335,10 +1523,10 @@ function generateLowStockReport() {
   
   lowStockItems.forEach(item => {
     const equiv = item.fullBoxes + (item.halfBoxes * 0.5);
-    const typeLabel = item.type ? item.type : 'Uncategorized';
+    const catLabel = item.mainCategory ? item.mainCategory : 'General';
     
-    if (typeLabel !== currentGroup) {
-      currentGroup = typeLabel;
+    if (catLabel !== currentGroup) {
+      currentGroup = catLabel;
       htmlContent += `
         <div class="low-stock-category-header" style="background-color: var(--bg-tertiary); padding: 0.5rem 1rem; font-size: 0.75rem; font-weight: 700; color: var(--primary); border-bottom: 1px solid var(--border-color); text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem;">
           <i data-lucide="folder" style="width: 12px; height: 12px;"></i> ${escapeHtml(currentGroup)}
@@ -1349,7 +1537,7 @@ function generateLowStockReport() {
     htmlContent += `
       <div class="low-stock-item">
         <div class="low-stock-item-info">
-          <span class="low-stock-item-name">${escapeHtml(item.name)}</span>
+          <span class="low-stock-item-name">${escapeHtml(item.name)} ${item.type ? `(${escapeHtml(item.type)})` : ''}</span>
         </div>
         <span class="low-stock-item-qty">${equiv.toFixed(1)} boxes</span>
       </div>
@@ -1357,37 +1545,35 @@ function generateLowStockReport() {
   });
   
   lowStockListContainer.innerHTML = htmlContent;
-  
-  // Render Lucide icons for the folder icons in category headers
   lucide.createIcons();
 }
 
-// Add Stock Type form submit
+// Add New Main Category form submit
 addTypeForm.addEventListener('submit', (e) => {
   e.preventDefault();
-  const newType = newTypeNameInput.value.trim();
-  if (!newType) return;
+  const newCatName = newTypeNameInput.value.trim();
+  if (!newCatName) return;
 
-  // Duplicate Check
-  const isDuplicate = state.stockTypes.some(t => t.toLowerCase() === newType.toLowerCase());
+  const isDuplicate = state.mainCategories.some(c => c.name.toLowerCase() === newCatName.toLowerCase());
   if (isDuplicate) {
-    showToast('This stock type already exists.', 'error');
+    showToast('This category already exists.', 'error');
     newTypeNameInput.focus();
     return;
   }
 
   triggerHaptic(20);
-  state.stockTypes.push(newType);
+  state.mainCategories.push({
+    name: newCatName,
+    subTypes: ['Red', 'Black', 'White', 'Navy Blue', 'Maroon', 'Gold', 'Green', 'Yellow', 'Pink', 'Grey', 'Orange', 'Rani', 'Rama', 'Firozi', 'Pista', 'Bottle Green', 'Wine', 'Silver', 'Copper']
+  });
   saveState();
   populateTypeDropdowns();
   renderTypesList();
-  
-  // Force immediate sync to server to prevent reload races
   syncWithServer();
   
   newTypeNameInput.value = '';
   newTypeNameInput.focus();
-  showToast(`Added category "${newType}".`);
+  showToast(`Added category "${newCatName}".`);
 });
 
 // Add stock button triggers
@@ -1429,15 +1615,22 @@ clearSearchBtn.addEventListener('click', () => {
   renderStockList();
 });
 
-filterSelect.addEventListener('change', (e) => {
+mainCategoryFilterSelect.addEventListener('change', (e) => {
   triggerHaptic(15);
-  state.filter = e.target.value;
+  state.mainCategoryFilter = e.target.value;
+  updateTypeFilterDropdown();
   renderStockList();
 });
 
 typeFilterSelect.addEventListener('change', (e) => {
   triggerHaptic(15);
   state.typeFilter = e.target.value;
+  renderStockList();
+});
+
+filterSelect.addEventListener('change', (e) => {
+  triggerHaptic(15);
+  state.filter = e.target.value;
   renderStockList();
 });
 
@@ -1454,6 +1647,7 @@ exportJsonFileBtn.addEventListener('click', () => {
   triggerHaptic(15);
   const backupData = {
     stocks: state.stocks,
+    mainCategories: state.mainCategories,
     stockTypes: state.stockTypes
   };
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
@@ -1472,11 +1666,12 @@ exportJsonFileBtn.addEventListener('click', () => {
 // CSV Export
 exportCsvBtn.addEventListener('click', () => {
   triggerHaptic(15);
-  const headers = ['Stock Name', 'Stock Type', 'Full Boxes', 'Half Boxes', 'Total Equivalent Boxes', 'Last Updated'];
+  const headers = ['Stock Name', 'Main Category', 'Color / Type', 'Full Boxes', 'Half Boxes', 'Total Equivalent Boxes', 'Last Updated'];
   
   const csvRows = state.stocks.map(item => [
     `"${item.name.replace(/"/g, '""')}"`,
-    `"${(item.type || 'General').replace(/"/g, '""')}"`,
+    `"${(item.mainCategory || 'Spun').replace(/"/g, '""')}"`,
+    `"${(item.type || '').replace(/"/g, '""')}"`,
     item.fullBoxes,
     item.halfBoxes,
     (item.fullBoxes + item.halfBoxes * 0.5).toFixed(1),
@@ -1526,14 +1721,14 @@ function handleJsonImport(content) {
   try {
     const imported = JSON.parse(content);
     let importedStocks = [];
-    let importedTypes = [];
+    let importedMainCategories = [];
 
     if (Array.isArray(imported)) {
       importedStocks = imported;
     } else if (imported && Array.isArray(imported.stocks)) {
       importedStocks = imported.stocks;
-      if (Array.isArray(imported.stockTypes)) {
-        importedTypes = imported.stockTypes;
+      if (Array.isArray(imported.mainCategories)) {
+        importedMainCategories = imported.mainCategories;
       }
     } else {
       throw new Error('Invalid JSON structure.');
@@ -1546,7 +1741,8 @@ function handleJsonImport(content) {
         validatedStocks.push({
           id: item.id || generateId(),
           name: item.name,
-          type: item.type || 'General',
+          mainCategory: item.mainCategory || 'Spun',
+          type: item.type || '',
           fullBoxes: Math.max(0, parseInt(item.fullBoxes, 10) || 0),
           halfBoxes: Math.max(0, parseInt(item.halfBoxes, 10) || 0),
           updatedAt: item.updatedAt || new Date().toISOString(),
@@ -1561,16 +1757,24 @@ function handleJsonImport(content) {
     }
     
     state.stocks = validatedStocks;
-    if (importedTypes.length > 0) {
-      importedTypes.forEach(t => {
-        if (!state.stockTypes.includes(t)) {
-          state.stockTypes.push(t);
+    if (importedMainCategories.length > 0) {
+      importedMainCategories.forEach(cat => {
+        const existing = state.mainCategories.find(c => c.name.toLowerCase() === cat.name.toLowerCase());
+        if (existing) {
+          if (Array.isArray(cat.subTypes)) {
+            cat.subTypes.forEach(st => {
+              if (!existing.subTypes.includes(st)) existing.subTypes.push(st);
+            });
+          }
+        } else {
+          state.mainCategories.push(cat);
         }
       });
     }
     
     saveState();
     populateTypeDropdowns();
+    renderStockList();
     backupModal.classList.add('hidden');
     backupModal.setAttribute('aria-hidden', 'true');
     showToast(`Successfully imported ${validatedStocks.length} items.`);
@@ -1610,8 +1814,9 @@ function handleCsvImport(content) {
       return row;
     };
     
-    const headerCols = parseCsvLine(lines[0].trim());
-    const hasTypeCol = headerCols.map(h => h.toLowerCase()).includes('stock type');
+    const headerCols = parseCsvLine(lines[0].trim()).map(h => h.toLowerCase());
+    const mainCatIdx = headerCols.findIndex(h => h.includes('main category') || h.includes('category'));
+    const colorTypeIdx = headerCols.findIndex(h => h.includes('color') || h.includes('type'));
     
     // Skip headers (line 0)
     for (let i = 1; i < lines.length; i++) {
@@ -1621,12 +1826,16 @@ function handleCsvImport(content) {
       const columns = parseCsvLine(line);
       if (columns.length >= 3 && columns[0]) {
         let name = columns[0].trim();
-        let type = 'General';
+        let mainCategory = mainCatIdx !== -1 && columns[mainCatIdx] ? columns[mainCatIdx].trim() : 'Spun';
+        let type = colorTypeIdx !== -1 && columns[colorTypeIdx] ? columns[colorTypeIdx].trim() : '';
         let full = 0;
         let half = 0;
         
-        if (hasTypeCol) {
-          type = columns[1] ? columns[1].trim() : 'General';
+        // Find full & half box column indices or default positions
+        if (mainCatIdx !== -1 && colorTypeIdx !== -1) {
+          full = parseInt(columns[3], 10) || 0;
+          half = parseInt(columns[4], 10) || 0;
+        } else if (colorTypeIdx !== -1) {
           full = parseInt(columns[2], 10) || 0;
           half = parseInt(columns[3], 10) || 0;
         } else {
@@ -1637,16 +1846,13 @@ function handleCsvImport(content) {
         validated.push({
           id: generateId(),
           name: name,
+          mainCategory: mainCategory,
           type: type,
           fullBoxes: Math.max(0, full),
           halfBoxes: Math.max(0, half),
           updatedAt: new Date().toISOString(),
           checked: false
         });
-        
-        if (type && !state.stockTypes.includes(type)) {
-          state.stockTypes.push(type);
-        }
       }
     }
     
@@ -1661,11 +1867,14 @@ function handleCsvImport(content) {
     } else {
       // Append unique, merge duplicates or add fresh
       validated.forEach(newItem => {
-        const existing = state.stocks.find(x => x.name.toLowerCase() === newItem.name.toLowerCase());
+        const existing = state.stocks.find(x => 
+          x.name.toLowerCase() === newItem.name.toLowerCase() &&
+          (x.mainCategory || '').toLowerCase() === (newItem.mainCategory || '').toLowerCase() &&
+          (x.type || '').toLowerCase() === (newItem.type || '').toLowerCase()
+        );
         if (existing) {
           existing.fullBoxes += newItem.fullBoxes;
           existing.halfBoxes += newItem.halfBoxes;
-          existing.type = newItem.type;
           existing.updatedAt = new Date().toISOString();
         } else {
           state.stocks.push(newItem);
@@ -1675,6 +1884,7 @@ function handleCsvImport(content) {
     
     saveState();
     populateTypeDropdowns();
+    renderStockList();
     backupModal.classList.add('hidden');
     backupModal.setAttribute('aria-hidden', 'true');
     showToast(`Inventory updated successfully.`);
