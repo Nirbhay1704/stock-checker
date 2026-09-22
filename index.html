@@ -117,14 +117,8 @@
       </div>
       <div class="filter-actions">
         <div class="select-wrapper" id="mainCatFilterWrapper">
-          <select id="mainCategoryFilterSelect" aria-label="Filter items by main category">
+          <select id="mainCategoryFilterSelect" aria-label="Filter items by category">
             <option value="all">All Categories</option>
-          </select>
-          <i data-lucide="chevron-down" class="select-arrow"></i>
-        </div>
-        <div class="select-wrapper" id="typeFilterWrapper">
-          <select id="typeFilterSelect" aria-label="Filter items by color or type">
-            <option value="all">All Colors</option>
           </select>
           <i data-lucide="chevron-down" class="select-arrow"></i>
         </div>
@@ -208,31 +202,20 @@
       <form id="stockForm" novalidate>
         <input type="hidden" id="stockId">
         
-        <!-- Category & Sub-Category Row -->
-        <div class="form-row">
-          <div class="form-group">
-            <label for="stockMainCategoryInput">Main Category</label>
-            <div class="select-wrapper">
-              <select id="stockMainCategoryInput" required>
-                <!-- Populated dynamically via JS: Spun, Lichi, Champion, etc. -->
-              </select>
-              <i data-lucide="chevron-down" class="select-arrow"></i>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="stockTypeInput">Color of Yarn / Sub-Type</label>
-            <div class="select-wrapper">
-              <select id="stockTypeInput" required>
-                <!-- Populated dynamically based on selected main category -->
-              </select>
-              <i data-lucide="chevron-down" class="select-arrow"></i>
-            </div>
+        <!-- Main Category Dropdown -->
+        <div class="form-group">
+          <label for="stockMainCategoryInput">Main Category</label>
+          <div class="select-wrapper">
+            <select id="stockMainCategoryInput" required>
+              <!-- Populated dynamically via JS: Spun, Lichi, Champion, etc. -->
+            </select>
+            <i data-lucide="chevron-down" class="select-arrow"></i>
           </div>
         </div>
 
         <div class="form-group">
-          <label for="stockNameInput">Stock Name / Shade No.</label>
-          <input type="text" id="stockNameInput" placeholder="e.g. Spun Red or Shade 102" required autocomplete="off">
+          <label for="stockNameInput">Stock Name / Color</label>
+          <input type="text" id="stockNameInput" placeholder="e.g. Red, Black, White, Shade 101..." required autocomplete="off">
           <span class="error-msg" id="nameError">Stock name is required</span>
         </div>
         
@@ -334,31 +317,31 @@
     </div>
   </div>
 
-  <!-- MANAGE STOCK TYPES & CATEGORIES MODAL -->
+  <!-- MANAGE CATEGORIES MODAL -->
   <div id="typesModal" class="modal-overlay hidden" aria-hidden="true" role="dialog">
-    <div class="modal-card modal-large" style="max-width: 640px;">
+    <div class="modal-card">
       <div class="modal-header">
-        <h2>Manage Categories & Colors</h2>
+        <h2>Manage Main Categories</h2>
         <button class="modal-close-btn" aria-label="Close modal">
           <i data-lucide="x"></i>
         </button>
       </div>
       <div class="modal-body">
-        <p class="modal-desc">Organize Main Categories (e.g., <strong>Spun</strong>, <strong>Lichi</strong>, <strong>Champion</strong>) and their yarn colors/sub-types.</p>
+        <p class="modal-desc">Add, edit (rename), or delete Main Categories (e.g., <strong>Spun</strong>, <strong>Lichi</strong>, <strong>Champion</strong>).</p>
         
         <!-- Add new Main Category form -->
         <form id="addTypeForm" style="display: flex; align-items: flex-end; gap: 0.75rem; margin-bottom: 1.25rem;">
           <div class="form-group" style="margin-bottom: 0; flex: 1;">
-            <label for="newTypeNameInput">Add New Main Category</label>
+            <label for="newTypeNameInput">Add New Category</label>
             <input type="text" id="newTypeNameInput" placeholder="e.g. Spun, Lichi, Champion..." required autocomplete="off" style="width: 100%; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border-color); background-color: var(--bg-primary); color: var(--text-primary); font-family: var(--font-sans);">
           </div>
-          <button type="submit" class="btn btn-primary" style="height: 48px; padding: 0 1.25rem;">+ Add Category</button>
+          <button type="submit" class="btn btn-primary" style="height: 48px; padding: 0 1.25rem; white-space: nowrap;">+ Add Category</button>
         </form>
         
-        <!-- Main Categories with nested Colors/Sub-types List -->
+        <!-- Categories List -->
         <div class="form-group">
-          <label>Categories & Yarn Colors</label>
-          <div id="typesListContainer" class="main-cats-container">
+          <label>Existing Main Categories</label>
+          <div id="typesListContainer" class="category-list-container">
             <!-- Rendered dynamically in JS -->
           </div>
         </div>
@@ -401,6 +384,6 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Service Worker Registration & App JavaScript -->
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>
