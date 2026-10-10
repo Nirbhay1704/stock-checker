@@ -280,15 +280,19 @@
           </div>
         </div>
         
-        <!-- CSV Export / Import -->
+        <!-- CSV Export / Import & Cloud Safety -->
         <div class="action-grid">
+          <button id="restoreFromCloudBtn" class="btn btn-outline" style="border-color: var(--accent); color: var(--accent);">
+            <i data-lucide="cloud-download"></i>
+            <span>Restore from Cloud</span>
+          </button>
           <button id="exportCsvBtn" class="btn btn-outline">
             <i data-lucide="file-spreadsheet" class="color-emerald"></i>
-            <span>Export CSV (Excel)</span>
+            <span>Export CSV</span>
           </button>
           <button id="exportJsonFileBtn" class="btn btn-outline">
             <i data-lucide="download" class="color-indigo"></i>
-            <span>Export Backup File</span>
+            <span>Export Backup</span>
           </button>
         </div>
 
@@ -389,6 +393,6 @@
   <div id="toastContainer" class="toast-container"></div>
 
   <!-- Service Worker Registration & App JavaScript -->
-  <script src="app.js?v=33"></script>
+  <script src="app.js?v=34"></script>
 </body>
 </html>

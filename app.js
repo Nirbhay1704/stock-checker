@@ -1,14 +1,470 @@
 /**
  * Stock Checker Pro - Core Application Logic
+ * Enhanced with Bulletproof Dual-Layer Storage (IndexedDB + localStorage + Cloud Firestore)
  */
 
-// --- Default Preloaded Categories ---
-const DEFAULT_MAIN_CATEGORIES = ['Spun', 'Lichi', 'Champion'];
+// --- Default Preloaded Categories & Fallback Inventory ---
+const DEFAULT_MAIN_CATEGORIES = ['SPUN', 'MAGIC COTTON', 'LICHI', 'SIMRAN', 'BHAGALPURI(KHADI)', 'Champion', 'General'];
+
+const DEFAULT_FALLBACK_STOCKS = [
+  {
+    "id": "stock_z06d7r2x8_1781870016970",
+    "name": "L-4021/N.C.GREEN",
+    "mainCategory": "MAGIC COTTON",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T11:53:36.970Z",
+    "checked": false
+  },
+  {
+    "id": "stock_tuccj3nwl_1781870137587",
+    "name": "L-4023/PISTA",
+    "mainCategory": "MAGIC COTTON",
+    "fullBoxes": 4,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T11:55:37.587Z",
+    "checked": false
+  },
+  {
+    "id": "stock_2r9u542l0_1781870202988",
+    "name": "L-2794/LEVANDER",
+    "mainCategory": "SPUN",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T11:57:06.854Z",
+    "checked": false
+  },
+  {
+    "id": "stock_syui951i6_1781870299122",
+    "name": "L-4025/FIROJI",
+    "mainCategory": "MAGIC COTTON",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:35:02.295Z",
+    "checked": false
+  },
+  {
+    "id": "stock_yxhsrhsqs_1781870324755",
+    "name": "L-4024/LEVENDER",
+    "mainCategory": "MAGIC COTTON",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T11:58:44.755Z",
+    "checked": false
+  },
+  {
+    "id": "stock_bhhifqghw_1781870407205",
+    "name": "L-4016/LEMON",
+    "mainCategory": "MAGIC COTTON",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:00:07.205Z",
+    "checked": false
+  },
+  {
+    "id": "stock_c1kklzld8_1781870438140",
+    "name": "L-4012/IVERY",
+    "mainCategory": "MAGIC COTTON",
+    "fullBoxes": 4,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:00:38.140Z",
+    "checked": false
+  },
+  {
+    "id": "stock_8l361xf55_1781870477356",
+    "name": "L-4020/N.PINK",
+    "mainCategory": "MAGIC COTTON",
+    "fullBoxes": 0,
+    "halfBoxes": 1,
+    "updatedAt": "2026-06-19T12:01:17.356Z",
+    "checked": false
+  },
+  {
+    "id": "stock_8fgu4zbop_1781871935875",
+    "name": "L-1273/PINK",
+    "mainCategory": "SPUN",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:25:35.875Z",
+    "checked": false
+  },
+  {
+    "id": "stock_5x2caxs0f_1781872002147",
+    "name": "L-3814/COFFEE",
+    "mainCategory": "SPUN",
+    "fullBoxes": 0,
+    "halfBoxes": 1,
+    "updatedAt": "2026-06-19T12:26:42.147Z",
+    "checked": false
+  },
+  {
+    "id": "stock_mtu4sgj38_1781872144776",
+    "name": "L-2302/N.LEMON",
+    "mainCategory": "SPUN",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:29:04.777Z",
+    "checked": false
+  },
+  {
+    "id": "stock_50cb0ynpt_1781872369744",
+    "name": "L-2385/FIROJI",
+    "mainCategory": "SPUN",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:32:49.748Z",
+    "checked": false
+  },
+  {
+    "id": "stock_x1b2vrm9z_1781872909490",
+    "name": "L-1729/PISTA",
+    "mainCategory": "SPUN",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:41:49.490Z",
+    "checked": false
+  },
+  {
+    "id": "stock_wyqq738jk_1781873003877",
+    "name": "L-37/BLACK",
+    "mainCategory": "SPUN",
+    "fullBoxes": 4,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:43:23.877Z",
+    "checked": false
+  },
+  {
+    "id": "stock_2ush7oxl6_1781873033375",
+    "name": "L-3776/CHIKOO",
+    "mainCategory": "SPUN",
+    "fullBoxes": 0,
+    "halfBoxes": 1,
+    "updatedAt": "2026-06-19T12:43:53.375Z",
+    "checked": false
+  },
+  {
+    "id": "stock_klmbkbx6l_1781873087543",
+    "name": "L-2151/C.GREEN",
+    "mainCategory": "SPUN",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:44:47.543Z",
+    "checked": false
+  },
+  {
+    "id": "stock_edj4piy4o_1781873132093",
+    "name": "L-3985/D.LEMON",
+    "mainCategory": "SPUN",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:45:32.093Z",
+    "checked": false
+  },
+  {
+    "id": "stock_0pz26bfkb_1781873165380",
+    "name": "L-3980/N.C.GREEN",
+    "mainCategory": "SPUN",
+    "fullBoxes": 7,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:46:05.380Z",
+    "checked": false
+  },
+  {
+    "id": "stock_2gyycylga_1781873190709",
+    "name": "L-3817/P.BLUE",
+    "mainCategory": "SPUN",
+    "fullBoxes": 0,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:46:30.709Z",
+    "checked": false
+  },
+  {
+    "id": "stock_o7o8fabjb_1781873234893",
+    "name": "L-3983/N.PINK",
+    "mainCategory": "SPUN",
+    "fullBoxes": 8,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:47:14.893Z",
+    "checked": false
+  },
+  {
+    "id": "stock_g8u4qu58c_1781873269676",
+    "name": "L-3981/N.PISTA",
+    "mainCategory": "SPUN",
+    "fullBoxes": 8,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:47:49.676Z",
+    "checked": false
+  },
+  {
+    "id": "stock_i34eboklo_1781873363643",
+    "name": "L-4013/IVERY",
+    "mainCategory": "SPUN",
+    "fullBoxes": 4,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T12:49:23.643Z",
+    "checked": false
+  },
+  {
+    "id": "stock_4js1giqj4_1781874988093",
+    "name": "L-1268/GAJRI",
+    "mainCategory": "SPUN",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:16:28.093Z",
+    "checked": false
+  },
+  {
+    "id": "stock_wqwxdjw1u_1781875018294",
+    "name": "L-3459/CREAM",
+    "mainCategory": "SPUN",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:16:58.294Z",
+    "checked": false
+  },
+  {
+    "id": "stock_10y62464s_1781875051394",
+    "name": "L-298/N BLUE",
+    "mainCategory": "SIMRAN",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:17:31.394Z",
+    "checked": false
+  },
+  {
+    "id": "stock_5ehrpb6hz_1781875194928",
+    "name": "L-37/BLACK",
+    "mainCategory": "SIMRAN",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:29:05.786Z",
+    "checked": false
+  },
+  {
+    "id": "stock_3qxa84llm_1781875231862",
+    "name": "L-2118/RED",
+    "mainCategory": "SIMRAN",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:20:31.862Z",
+    "checked": false
+  },
+  {
+    "id": "stock_07qk3gdji_1781875259793",
+    "name": "L-2102/BT.GREEN",
+    "mainCategory": "SIMRAN",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:20:59.793Z",
+    "checked": false
+  },
+  {
+    "id": "stock_jdoavxxhe_1781875281994",
+    "name": "L-1941/WINE",
+    "mainCategory": "SIMRAN",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:21:21.994Z",
+    "checked": false
+  },
+  {
+    "id": "stock_ro3rkx87l_1781875310976",
+    "name": "L-2146/RAMA",
+    "mainCategory": "SIMRAN",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:21:50.976Z",
+    "checked": false
+  },
+  {
+    "id": "stock_zchb5gctl_1781875379091",
+    "name": "L-2351/GOLD",
+    "mainCategory": "SIMRAN",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:45:15.598Z",
+    "checked": false
+  },
+  {
+    "id": "stock_wuii6121t_1781875730920",
+    "name": "L-3817/P.BLUE",
+    "mainCategory": "SIMRAN",
+    "fullBoxes": 4,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:28:50.920Z",
+    "checked": false
+  },
+  {
+    "id": "stock_ajjhj6676_1781875771420",
+    "name": "L-1632/RANI",
+    "mainCategory": "SIMRAN",
+    "fullBoxes": 4,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:29:31.420Z",
+    "checked": false
+  },
+  {
+    "id": "stock_ga03ddp0s_1781875792103",
+    "name": "L-3814/COFFEE",
+    "mainCategory": "SIMRAN",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:29:52.103Z",
+    "checked": false
+  },
+  {
+    "id": "stock_45zb9r544_1781875827836",
+    "name": "L-4003/CHIKOO",
+    "mainCategory": "BHAGALPURI(KHADI)",
+    "fullBoxes": 5,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:30:27.836Z",
+    "checked": false
+  },
+  {
+    "id": "stock_yy94bcw2x_1781875856136",
+    "name": "L-3785/MEHNDI",
+    "mainCategory": "BHAGALPURI(KHADI)",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:30:56.136Z",
+    "checked": false
+  },
+  {
+    "id": "stock_rtax8xf9c_1781875880836",
+    "name": "L-3788/P.BLUE",
+    "mainCategory": "BHAGALPURI(KHADI)",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:31:20.836Z",
+    "checked": false
+  },
+  {
+    "id": "stock_bde34dqai_1781875905253",
+    "name": "L-3789/RAMA",
+    "mainCategory": "BHAGALPURI(KHADI)",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:31:45.253Z",
+    "checked": false
+  },
+  {
+    "id": "stock_2hwp1mwp2_1781875923969",
+    "name": "L-3790/JAMLI",
+    "mainCategory": "BHAGALPURI(KHADI)",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:32:03.969Z",
+    "checked": false
+  },
+  {
+    "id": "stock_psr8som2t_1781875966903",
+    "name": "L-3786/D.PINK",
+    "mainCategory": "BHAGALPURI(KHADI)",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:32:46.903Z",
+    "checked": false
+  },
+  {
+    "id": "stock_51jywbegy_1781875989370",
+    "name": "L-3784/GREY",
+    "mainCategory": "BHAGALPURI(KHADI)",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:33:09.370Z",
+    "checked": false
+  },
+  {
+    "id": "stock_o9c34o6f7_1781876012286",
+    "name": "L-4067/COFFEE",
+    "mainCategory": "BHAGALPURI(KHADI)",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:33:32.286Z",
+    "checked": false
+  },
+  {
+    "id": "stock_nml2qzige_1781876053969",
+    "name": "L-37/BLACK",
+    "mainCategory": "LICHI",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:35:06.852Z",
+    "checked": false
+  },
+  {
+    "id": "stock_6efr74vmb_1781876105035",
+    "name": "L-558/N.BLUE",
+    "mainCategory": "LICHI",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:35:05.036Z",
+    "checked": false
+  },
+  {
+    "id": "stock_gc2rjm2uk_1781876131235",
+    "name": "L-1235/BT GREEN",
+    "mainCategory": "LICHI",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:35:31.236Z",
+    "checked": false
+  },
+  {
+    "id": "stock_5peiv86xb_1781876157203",
+    "name": "L-1663/P.RED",
+    "mainCategory": "LICHI",
+    "fullBoxes": 2,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:35:57.203Z",
+    "checked": false
+  },
+  {
+    "id": "stock_l04l86ovg_1781876183653",
+    "name": "L-1906/P.RANI",
+    "mainCategory": "LICHI",
+    "fullBoxes": 6,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:36:23.653Z",
+    "checked": false
+  },
+  {
+    "id": "stock_btb9qgz6w_1781876219369",
+    "name": "L-2859/WINE",
+    "mainCategory": "LICHI",
+    "fullBoxes": 3,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:36:59.369Z",
+    "checked": false
+  },
+  {
+    "id": "stock_qoyaga2cf_1781876491517",
+    "name": "MEHANDI",
+    "mainCategory": "LICHI",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:41:31.517Z",
+    "checked": false
+  },
+  {
+    "id": "stock_u52rlqbf8_1781876527332",
+    "name": "L-2631/P.FIROJI",
+    "mainCategory": "LICHI",
+    "fullBoxes": 1,
+    "halfBoxes": 0,
+    "updatedAt": "2026-06-19T13:42:07.332Z",
+    "checked": false
+  }
+];
+
+const FIRESTORE_DOC_ID = 'current_state';
 
 // --- Application State ---
 let state = {
   stocks: [],
-  mainCategories: ['Spun', 'Lichi', 'Champion'],
+  mainCategories: [...DEFAULT_MAIN_CATEGORIES],
   searchQuery: '',
   filter: 'all', // availability filter ('all', 'inStock', 'outOfStock')
   mainCategoryFilter: 'all', // category filter ('all' or specific category)
@@ -16,7 +472,9 @@ let state = {
   useFirebase: false,
   db: null,
   updatedAt: null,
-  sortBy: 'name'
+  sortBy: 'name',
+  isInitialSeed: false,
+  userExplicitlyClearedAll: false
 };
 
 // --- DOM Elements ---
@@ -58,38 +516,38 @@ const stockHalfInput = document.getElementById('stockHalfInput');
 const nameError = document.getElementById('nameError');
 
 const typesModal = document.getElementById('typesModal');
-const addTypeForm = document.getElementById('addTypeForm');
 const newTypeNameInput = document.getElementById('newTypeNameInput');
 const typesListContainer = document.getElementById('typesListContainer');
+const addTypeForm = document.getElementById('addTypeForm');
 
 const backupModal = document.getElementById('backupModal');
 const exportCsvBtn = document.getElementById('exportCsvBtn');
 const exportJsonFileBtn = document.getElementById('exportJsonFileBtn');
+const importFileInput = document.getElementById('importFile');
 const importFile = document.getElementById('importFile');
 const fileNameDisplay = document.getElementById('fileNameDisplay');
 const clearAllDataBtn = document.getElementById('clearAllDataBtn');
+const restoreFromCloudBtn = document.getElementById('restoreFromCloudBtn');
 const firebaseConfigInput = document.getElementById('firebaseConfigInput');
 const saveFirebaseConfigBtn = document.getElementById('saveFirebaseConfigBtn');
 const clearFirebaseConfigBtn = document.getElementById('clearFirebaseConfigBtn');
-const toastContainer = document.getElementById('toastContainer');
 
 // --- Helper Functions ---
-
-// Generate Unique ID
 function generateId() {
   return 'stock_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now();
 }
 
-// Touch/Haptic Vibration Feedback
 function triggerHaptic(duration = 15) {
   if ('vibrate' in navigator) {
-    navigator.vibrate(duration);
+    try {
+      navigator.vibrate(duration);
+    } catch (e) {}
   }
 }
 
-// Escape HTML to prevent XSS
 function escapeHtml(unsafe) {
-  return String(unsafe || '')
+  if (!unsafe) return '';
+  return String(unsafe)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -97,30 +555,31 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
-// Toast Notifications
 function showToast(message, type = 'success') {
+  const toastContainer = document.getElementById('toastContainer');
+  if (!toastContainer) return;
+
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   
   let iconName = 'check-circle';
-  if (type === 'error') iconName = 'alert-triangle';
+  if (type === 'error') iconName = 'alert-circle';
   if (type === 'info') iconName = 'info';
-  
+
   toast.innerHTML = `
     <i data-lucide="${iconName}"></i>
-    <span class="toast-message">${message}</span>
+    <span>${escapeHtml(message)}</span>
   `;
-  
+
   toastContainer.appendChild(toast);
-  lucide.createIcons();
-  
-  // Slide up and then fade out
+  if (window.lucide) {
+    lucide.createIcons({ root: toast });
+  }
+
   setTimeout(() => {
-    toast.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-    toast.style.opacity = '0';
-    toast.style.transform = 'translate(-50%, -20px)';
-    setTimeout(() => toast.remove(), 400);
-  }, 3000);
+    toast.classList.add('fade-out');
+    toast.addEventListener('transitionend', () => toast.remove());
+  }, 2500);
 }
 
 // --- Theme Management ---
@@ -131,20 +590,18 @@ function initTheme() {
 
 function setTheme(theme) {
   state.theme = theme;
-  localStorage.setItem('theme', theme);
   document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
   
   const darkIcon = themeToggleBtn.querySelector('.theme-icon-dark');
   const lightIcon = themeToggleBtn.querySelector('.theme-icon-light');
   
-  if (theme === 'light') {
-    if (darkIcon) darkIcon.classList.add('hidden');
-    if (lightIcon) lightIcon.classList.remove('hidden');
-    themeToggleBtn.title = 'Switch to Dark Mode';
-  } else {
+  if (theme === 'dark') {
     if (darkIcon) darkIcon.classList.remove('hidden');
     if (lightIcon) lightIcon.classList.add('hidden');
-    themeToggleBtn.title = 'Switch to Light Mode';
+  } else {
+    if (darkIcon) darkIcon.classList.add('hidden');
+    if (lightIcon) lightIcon.classList.remove('hidden');
   }
 }
 
@@ -154,6 +611,70 @@ themeToggleBtn.addEventListener('click', () => {
   setTheme(nextTheme);
 });
 
+// --- Persistent IndexedDB Storage Layer (Prevents Safari 7-day eviction) ---
+const DB_NAME = 'StockCheckerDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'inventory_store';
+
+function openStockDB() {
+  return new Promise((resolve) => {
+    if (!window.indexedDB) return resolve(null);
+    try {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
+async function idbGet(key) {
+  try {
+    const db = await openStockDB();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result !== undefined ? req.result : null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (e) {
+    return null;
+  }
+}
+
+async function idbSet(key, value) {
+  try {
+    const db = await openStockDB();
+    if (!db) return;
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.put(value, key);
+  } catch (e) {
+    console.warn('idbSet failed:', e);
+  }
+}
+
+function requestPersistentStorage() {
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().then(persistent => {
+      if (persistent) {
+        console.log('Persistent Storage: Granted (immune to 7-day browser eviction)');
+      } else {
+        console.log('Persistent Storage: Active via IndexedDB');
+      }
+    }).catch(() => {});
+  }
+}
+
 // --- State Storage & Syncing ---
 function loadState() {
   try {
@@ -161,20 +682,10 @@ function loadState() {
     const savedCategories = localStorage.getItem('mainCategories');
     if (savedCategories) {
       const parsed = JSON.parse(savedCategories);
-      if (Array.isArray(parsed)) {
-        state.mainCategories = parsed.map(c => typeof c === 'string' ? c : (c.name || 'Spun')).filter(Boolean);
-      }
-    } else {
-      // Check legacy stockTypes
-      const legacyTypes = localStorage.getItem('stockTypes');
-      if (legacyTypes) {
-        const parsed = JSON.parse(legacyTypes);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          state.mainCategories = Array.from(new Set([...DEFAULT_MAIN_CATEGORIES, ...parsed]));
-        }
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        state.mainCategories = parsed.map(c => typeof c === 'string' ? c : (c.name || 'General')).filter(Boolean);
       }
     }
-
     if (!state.mainCategories || state.mainCategories.length === 0) {
       state.mainCategories = [...DEFAULT_MAIN_CATEGORIES];
     }
@@ -183,40 +694,51 @@ function loadState() {
     // 2. Load Stock List
     const savedStocks = localStorage.getItem('stocks');
     if (savedStocks) {
-      state.stocks = JSON.parse(savedStocks);
-      state.stocks.forEach(item => {
-        item.id = String(item.id || generateId());
-        item.name = String(item.name || '').trim();
-        if (!item.mainCategory) {
-          item.mainCategory = item.type || (state.mainCategories[0] || 'Spun');
-        }
-        item.mainCategory = String(item.mainCategory).trim();
-      });
-    } else {
-      // Initial sample items
-      state.stocks = [
-        { id: '1', name: 'Red', mainCategory: 'Spun', fullBoxes: 5, halfBoxes: 2, updatedAt: new Date().toISOString(), checked: false },
-        { id: '2', name: 'Black', mainCategory: 'Spun', fullBoxes: 12, halfBoxes: 1, updatedAt: new Date().toISOString(), checked: false },
-        { id: '3', name: 'Gold', mainCategory: 'Lichi', fullBoxes: 4, halfBoxes: 0, updatedAt: new Date().toISOString(), checked: false },
-        { id: '4', name: 'Maroon', mainCategory: 'Champion', fullBoxes: 0, halfBoxes: 2, updatedAt: new Date().toISOString(), checked: false }
-      ];
-      localStorage.setItem('stocks', JSON.stringify(state.stocks));
+      const parsed = JSON.parse(savedStocks);
+      if (Array.isArray(parsed)) {
+        state.stocks = parsed;
+        state.stocks.forEach(item => {
+          item.id = String(item.id || generateId());
+          item.name = String(item.name || '').trim();
+          item.mainCategory = String(item.mainCategory || item.type || state.mainCategories[0] || 'General').trim();
+          item.fullBoxes = parseInt(item.fullBoxes, 10) || 0;
+          item.halfBoxes = parseInt(item.halfBoxes, 10) || 0;
+        });
+        state.isInitialSeed = false;
+      }
     }
 
-    // 3. Load Last Updated Timestamp
+    // If localStorage was empty, use fallback items as initial seed with safe ancient timestamp
+    if (!state.stocks || state.stocks.length === 0) {
+      state.stocks = JSON.parse(JSON.stringify(DEFAULT_FALLBACK_STOCKS));
+      state.isInitialSeed = true;
+      state.updatedAt = '1970-01-01T00:00:00.000Z';
+    }
+
+    // 3. Load Timestamp
     const savedUpdatedAt = localStorage.getItem('stateUpdatedAt');
-    if (savedUpdatedAt) {
+    if (savedUpdatedAt && !state.isInitialSeed) {
       state.updatedAt = savedUpdatedAt;
-    } else {
-      let maxTime = 0;
-      if (state.stocks && state.stocks.length > 0) {
-        state.stocks.forEach(item => {
-          const t = new Date(item.updatedAt || 0).getTime();
-          if (t > maxTime) maxTime = t;
-        });
-      }
-      state.updatedAt = maxTime > 0 ? new Date(maxTime).toISOString() : new Date().toISOString();
-      localStorage.setItem('stateUpdatedAt', state.updatedAt);
+    } else if (state.isInitialSeed) {
+      state.updatedAt = '1970-01-01T00:00:00.000Z';
+    }
+
+    // Asynchronously check IndexedDB in case localStorage was cleared by Safari
+    if (state.isInitialSeed) {
+      idbGet('stocks').then(idbStocks => {
+        if (Array.isArray(idbStocks) && idbStocks.length > 0) {
+          console.log('Restored', idbStocks.length, 'stocks from persistent IndexedDB');
+          state.stocks = idbStocks;
+          state.isInitialSeed = false;
+          idbGet('stateUpdatedAt').then(ts => {
+            if (ts) state.updatedAt = ts;
+            localStorage.setItem('stocks', JSON.stringify(state.stocks));
+            localStorage.setItem('stateUpdatedAt', state.updatedAt || new Date().toISOString());
+            updateDashboard();
+            renderStockList();
+          });
+        }
+      });
     }
     
     populateTypeDropdowns();
@@ -259,7 +781,6 @@ function initFirebase() {
     }
   }
   
-  // Use default fallback if no config exists in localStorage
   if (!config) {
     config = DEFAULT_FIREBASE_CONFIG;
   }
@@ -268,21 +789,25 @@ function initFirebase() {
     try {
       if (firebase.apps.length === 0) {
         firebase.initializeApp(config);
+        try {
+          firebase.firestore().enablePersistence({ synchronizeTabs: true }).catch(err => {
+            console.warn('Firestore persistence status:', err.code);
+          });
+        } catch (e) {
+          console.warn('Firestore persistence not supported:', e);
+        }
       }
       state.db = firebase.firestore();
       state.useFirebase = true;
       
-      // Update config input textarea if it exists and localStorage has custom config
       if (firebaseConfigInput) {
         firebaseConfigInput.value = localStorage.getItem('firebaseConfig') || '';
       }
       
-      // Set up real-time sync listener
       setupFirebaseListener();
       console.log('Firebase initialized successfully.');
     } catch (error) {
-      console.error('Error parsing/initializing Firebase config:', error);
-      showToast('Invalid Firebase configuration JSON.', 'error');
+      console.error('Error initializing Firebase:', error);
       state.useFirebase = false;
       state.db = null;
       updateSyncStatus(false);
@@ -300,57 +825,55 @@ function initFirebase() {
   }
 }
 
-// Merge local and remote stock states based on updatedAt timestamps
+// Lossless Merge: Combines local and remote states without dropping items
 function mergeInventory(remoteStocks, remoteCategories, remoteUpdatedAt) {
   const remoteTime = new Date(remoteUpdatedAt || 0).getTime();
   const localTime = new Date(state.updatedAt || 0).getTime();
   
-  // If local state is newer or equal, we keep the local state
-  if (localTime >= remoteTime) {
+  // If local state was merely the initial seed, adopt remote completely
+  if (state.isInitialSeed || state.stocks.length === 0) {
     return {
-      stocks: state.stocks,
-      mainCategories: state.mainCategories
+      stocks: remoteStocks,
+      mainCategories: Array.isArray(remoteCategories) && remoteCategories.length > 0 ? remoteCategories : state.mainCategories,
+      updatedAt: remoteUpdatedAt || new Date().toISOString()
     };
   }
+
+  const itemMap = new Map();
   
-  const mergedStocks = [];
-  
-  // 1. Process items that exist locally
-  state.stocks.forEach(localItem => {
-    const remoteItem = remoteStocks.find(item => item.id === localItem.id);
-    const localItemTime = new Date(localItem.updatedAt || 0).getTime();
-    
-    if (remoteItem) {
-      // Item exists in both. Take the newer one.
-      const remoteItemTime = new Date(remoteItem.updatedAt || 0).getTime();
-      if (remoteItemTime > localItemTime) {
-        mergedStocks.push(remoteItem);
-      } else {
-        mergedStocks.push(localItem);
-      }
-    }
-  });
-  
-  // 2. Process items that exist remotely but not locally (created remotely)
-  remoteStocks.forEach(remoteItem => {
-    const existsLocally = state.stocks.some(item => item.id === remoteItem.id);
-    if (!existsLocally) {
-      const remoteItemTime = new Date(remoteItem.updatedAt || 0).getTime();
-      if (remoteItemTime > localTime) {
-        mergedStocks.push(remoteItem);
-      }
-    }
-  });
-  
-  // Merge categories
-  let mergedCategories = state.mainCategories;
-  if (Array.isArray(remoteCategories) && remoteCategories.length > 0) {
-    mergedCategories = remoteCategories.map(c => typeof c === 'string' ? c : (c.name || '')).filter(Boolean);
+  // 1. Put all remote items into map
+  if (Array.isArray(remoteStocks)) {
+    remoteStocks.forEach(item => {
+      itemMap.set(String(item.id), { ...item });
+    });
   }
   
+  // 2. Merge local items
+  state.stocks.forEach(localItem => {
+    const id = String(localItem.id);
+    if (!itemMap.has(id)) {
+      // Item created locally - keep it!
+      itemMap.set(id, { ...localItem });
+    } else {
+      // Exists in both: compare timestamps
+      const remoteItem = itemMap.get(id);
+      const lTime = new Date(localItem.updatedAt || 0).getTime();
+      const rTime = new Date(remoteItem.updatedAt || 0).getTime();
+      if (lTime > rTime) {
+        itemMap.set(id, { ...localItem });
+      }
+    }
+  });
+  
+  const mergedStocks = Array.from(itemMap.values());
+  const mergedCategories = Array.isArray(remoteCategories) && remoteCategories.length > 0
+    ? Array.from(new Set([...state.mainCategories, ...remoteCategories]))
+    : state.mainCategories;
+    
   return {
     stocks: mergedStocks,
-    mainCategories: mergedCategories
+    mainCategories: mergedCategories,
+    updatedAt: remoteTime > localTime ? remoteUpdatedAt : state.updatedAt
   };
 }
 
@@ -362,14 +885,41 @@ function setupFirebaseListener() {
   
   if (!state.db) return;
   
-  firestoreUnsubscribe = state.db.collection('inventory').doc('current_state')
+  firestoreUnsubscribe = state.db.collection('inventory').doc(FIRESTORE_DOC_ID)
     .onSnapshot((doc) => {
       if (doc.exists) {
         const data = doc.data();
         if (data && Array.isArray(data.stocks)) {
-          // Merge remote updates with local state instead of doing a blind overwrite
-          const merged = mergeInventory(data.stocks, data.mainCategories || data.stockTypes || [], data.updatedAt);
+          // If remote has stocks and local was an initial seed or empty, adopt remote directly!
+          if (data.stocks.length > 0 && (state.isInitialSeed || state.stocks.length === 0)) {
+            state.stocks = data.stocks;
+            if (Array.isArray(data.mainCategories) && data.mainCategories.length > 0) {
+              state.mainCategories = data.mainCategories;
+            }
+            state.updatedAt = data.updatedAt || new Date().toISOString();
+            state.isInitialSeed = false;
+            
+            // Persist to dual storage
+            localStorage.setItem('stocks', JSON.stringify(state.stocks));
+            localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
+            localStorage.setItem('stateUpdatedAt', state.updatedAt);
+            idbSet('stocks', state.stocks);
+            idbSet('mainCategories', state.mainCategories);
+            idbSet('stateUpdatedAt', state.updatedAt);
+            idbSet('backup_latest', {
+              stocks: state.stocks,
+              mainCategories: state.mainCategories,
+              updatedAt: state.updatedAt
+            });
+            
+            populateTypeDropdowns();
+            updateDashboard();
+            renderStockList();
+            updateSyncStatus(true);
+            return;
+          }
           
+          const merged = mergeInventory(data.stocks, data.mainCategories || [], data.updatedAt);
           const localStocksStr = JSON.stringify(state.stocks);
           const mergedStocksStr = JSON.stringify(merged.stocks);
           const localCatsStr = JSON.stringify(state.mainCategories);
@@ -378,39 +928,43 @@ function setupFirebaseListener() {
           if (localStocksStr !== mergedStocksStr || localCatsStr !== mergedCatsStr) {
             state.stocks = merged.stocks;
             state.mainCategories = merged.mainCategories;
-            state.updatedAt = data.updatedAt || new Date().toISOString();
+            state.updatedAt = merged.updatedAt || new Date().toISOString();
+            state.isInitialSeed = false;
             
             localStorage.setItem('stocks', JSON.stringify(state.stocks));
             localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
             localStorage.setItem('stateUpdatedAt', state.updatedAt);
+            idbSet('stocks', state.stocks);
+            idbSet('mainCategories', state.mainCategories);
+            idbSet('stateUpdatedAt', state.updatedAt);
             
             populateTypeDropdowns();
             updateDashboard();
             renderStockList();
-            
             updateSyncStatus(true);
-            showToast('Inventory synced with Cloud.', 'info');
-          } else {
-            // If identical, align our local timestamp if the server timestamp is newer
-            const remoteTime = new Date(data.updatedAt || 0).getTime();
-            const localTime = new Date(state.updatedAt || 0).getTime();
-            if (remoteTime > localTime) {
-              state.updatedAt = data.updatedAt;
-              localStorage.setItem('stateUpdatedAt', state.updatedAt);
-            }
           }
         }
       }
     }, (error) => {
-      console.error('Firestore listener error:', error);
+      console.error('Firestore listener notice:', error);
       updateSyncStatus(false);
-      showToast(`Cloud Sync Connection Failed: ${error.message || error}`, 'error');
     });
 }
 
-// Silent background server sync
+// Silent background server sync with safety guards
 async function autoSyncWithServer() {
+  if (state.isInitialSeed) {
+    console.log('Initial seed state: skipping cloud push to protect remote data.');
+    return;
+  }
+  
   try {
+    // Guard against clearing cloud when local stocks is 0 without explicit user action
+    if (state.stocks.length === 0 && !state.userExplicitlyClearedAll) {
+      console.warn('Local stocks is empty and clear was not confirmed. Skipping cloud overwrite.');
+      return;
+    }
+
     const payload = {
       stocks: state.stocks,
       mainCategories: state.mainCategories,
@@ -419,7 +973,9 @@ async function autoSyncWithServer() {
     
     if (state.useFirebase) {
       if (!state.db) return;
-      await state.db.collection('inventory').doc('current_state').set(payload);
+      await state.db.collection('inventory').doc(FIRESTORE_DOC_ID).set(payload);
+      // Auto-save backup document asynchronously
+      state.db.collection('inventory').doc(FIRESTORE_DOC_ID + '_backup').set(payload).catch(() => {});
       updateSyncStatus(true);
     } else {
       const response = await fetch('/api/data', {
@@ -437,18 +993,35 @@ async function autoSyncWithServer() {
       }
     }
   } catch (err) {
+    console.error('autoSync error:', err);
     updateSyncStatus(false);
   }
 }
 
 function saveState(stocksUpdated = true) {
   if (stocksUpdated) {
+    state.isInitialSeed = false;
     state.updatedAt = new Date().toISOString();
-    localStorage.setItem('stocks', JSON.stringify(state.stocks));
-    localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
-    localStorage.setItem('stateUpdatedAt', state.updatedAt);
     
-    // Auto-sync in background, debounced by 1 second to optimize requests
+    try {
+      localStorage.setItem('stocks', JSON.stringify(state.stocks));
+      localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
+      localStorage.setItem('stateUpdatedAt', state.updatedAt);
+    } catch (e) {
+      console.warn('localStorage save warning:', e);
+    }
+
+    // Dual-Layer Persistence: Save to IndexedDB
+    idbSet('stocks', state.stocks);
+    idbSet('mainCategories', state.mainCategories);
+    idbSet('stateUpdatedAt', state.updatedAt);
+    idbSet('backup_latest', {
+      stocks: state.stocks,
+      mainCategories: state.mainCategories,
+      updatedAt: state.updatedAt
+    });
+    
+    // Auto-sync in background, debounced by 1 second
     if (syncTimeout) clearTimeout(syncTimeout);
     syncTimeout = setTimeout(() => {
       autoSyncWithServer();
@@ -458,55 +1031,58 @@ function saveState(stocksUpdated = true) {
   renderStockList();
 }
 
-// Fetch Inventory Data from Python Server or Firestore
-async function loadFromServer() {
+// Fetch Inventory Data from Firestore with safety reconciliation
+async function loadFromServer(isManual = false) {
   if (state.useFirebase) {
     if (!state.db) return;
     try {
-      const doc = await state.db.collection('inventory').doc('current_state').get();
+      const doc = await state.db.collection('inventory').doc(FIRESTORE_DOC_ID).get();
       if (doc.exists) {
         const data = doc.data();
-        if (data && Array.isArray(data.stocks)) {
-          // Compare timestamps
+        if (data && Array.isArray(data.stocks) && data.stocks.length > 0) {
           const remoteTime = new Date(data.updatedAt || 0).getTime();
           const localTime = new Date(state.updatedAt || 0).getTime();
           
-          if (localTime > remoteTime) {
-            console.log('Local state is newer than Firestore. Pushing local state to cloud...');
-            autoSyncWithServer();
+          if (isManual || state.isInitialSeed || remoteTime >= localTime || state.stocks.length === 0) {
+            state.stocks = data.stocks;
+            if (Array.isArray(data.mainCategories) && data.mainCategories.length > 0) {
+              state.mainCategories = data.mainCategories;
+            }
+            state.updatedAt = data.updatedAt || new Date().toISOString();
+            state.isInitialSeed = false;
+            
+            localStorage.setItem('stocks', JSON.stringify(state.stocks));
+            localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
+            localStorage.setItem('stateUpdatedAt', state.updatedAt);
+            idbSet('stocks', state.stocks);
+            idbSet('mainCategories', state.mainCategories);
+            idbSet('stateUpdatedAt', state.updatedAt);
+            
+            populateTypeDropdowns();
+            updateDashboard();
+            renderStockList();
+            updateSyncStatus(true);
+            if (isManual) {
+              showToast(`Restored ${state.stocks.length} items from cloud!`);
+            }
             return;
           }
-          
-          state.stocks = data.stocks;
-          if (Array.isArray(data.mainCategories)) {
-            state.mainCategories = data.mainCategories;
-          }
-          state.updatedAt = data.updatedAt || new Date().toISOString();
-          
-          localStorage.setItem('stocks', JSON.stringify(state.stocks));
-          localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
-          localStorage.setItem('stateUpdatedAt', state.updatedAt);
-          
-          populateTypeDropdowns();
-          saveState(false); // Recalculate stats and render
-          updateSyncStatus(true);
-          showToast('Loaded latest synced data from cloud.', 'info');
         }
       } else {
-        // Initialize Firestore with local state
-        await autoSyncWithServer();
+        if (!state.isInitialSeed && state.stocks.length > 0) {
+          await autoSyncWithServer();
+        }
       }
     } catch (err) {
       console.error('Error loading from Firestore:', err);
       updateSyncStatus(false);
-      showToast(`Failed to load from cloud: ${err.message || err}`, 'error');
+      if (isManual) {
+        showToast('Could not fetch cloud data. Check connection.', 'error');
+      }
     }
   } else {
-    // Check if we are running on a static live server (GitHub Pages)
-    const isStaticHost = window.location.hostname.endsWith('github.io');
+    const isStaticHost = window.location.hostname.endsWith('github.io') || window.location.hostname.includes('vercel.app');
     if (isStaticHost) {
-      console.log('Running on GitHub Pages without Firebase config. Using local storage fallback.');
-      updateSyncStatus(false);
       return;
     }
 
@@ -516,40 +1092,26 @@ async function loadFromServer() {
       
       const data = await response.json();
       if (data && Array.isArray(data.stocks)) {
-        // Compare timestamps
         const remoteTime = new Date(data.updatedAt || 0).getTime();
         const localTime = new Date(state.updatedAt || 0).getTime();
         
-        if (localTime > remoteTime) {
-          console.log('Local state is newer than Python server. Pushing local state...');
-          autoSyncWithServer();
-          return;
+        if (remoteTime > localTime) {
+          state.stocks = data.stocks;
+          if (Array.isArray(data.mainCategories)) {
+            state.mainCategories = data.mainCategories;
+          }
+          state.updatedAt = data.updatedAt || new Date().toISOString();
+          saveState(false);
+          updateSyncStatus(true);
         }
-        
-        state.stocks = data.stocks;
-        if (Array.isArray(data.mainCategories)) {
-          state.mainCategories = data.mainCategories.map(c => typeof c === 'string' ? c : (c.name || '')).filter(Boolean);
-        }
-        state.updatedAt = data.updatedAt || new Date().toISOString();
-        
-        // Update local storage cache
-        localStorage.setItem('stocks', JSON.stringify(state.stocks));
-        localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
-        localStorage.setItem('stateUpdatedAt', state.updatedAt);
-        
-        populateTypeDropdowns();
-        saveState(false); // Recalculate stats and render
-        updateSyncStatus(true);
-        showToast('Loaded latest synced data from server.', 'info');
       }
     } catch (err) {
-      console.warn('Could not connect to Python server. Running in Offline Mode.', err);
       updateSyncStatus(false);
     }
   }
 }
 
-// Save & Sync Inventory Data to Python Server or Firestore
+// Save & Sync Inventory Data manually
 async function syncWithServer() {
   if (syncTimeout) {
     clearTimeout(syncTimeout);
@@ -562,29 +1124,44 @@ async function syncWithServer() {
                      syncBtn.querySelector('svg') || 
                      syncBtn.querySelector('i');
   
-  // Start spinning animation
   if (activeIcon) activeIcon.classList.add('spin');
   syncBtn.disabled = true;
   if (syncText) syncText.textContent = 'Syncing...';
   
   try {
+    state.isInitialSeed = false;
+    state.updatedAt = new Date().toISOString();
+    
     const payload = {
       stocks: state.stocks,
       mainCategories: state.mainCategories,
-      updatedAt: state.updatedAt || new Date().toISOString()
+      updatedAt: state.updatedAt
     };
+    
+    // Save to dual storage
+    localStorage.setItem('stocks', JSON.stringify(state.stocks));
+    localStorage.setItem('mainCategories', JSON.stringify(state.mainCategories));
+    localStorage.setItem('stateUpdatedAt', state.updatedAt);
+    idbSet('stocks', state.stocks);
+    idbSet('mainCategories', state.mainCategories);
+    idbSet('stateUpdatedAt', state.updatedAt);
+    idbSet('backup_latest', {
+      stocks: state.stocks,
+      mainCategories: state.mainCategories,
+      updatedAt: state.updatedAt
+    });
     
     if (state.useFirebase) {
       if (!state.db) throw new Error('Firestore not initialized');
-      await state.db.collection('inventory').doc('current_state').set(payload);
+      await state.db.collection('inventory').doc(FIRESTORE_DOC_ID).set(payload);
+      state.db.collection('inventory').doc(FIRESTORE_DOC_ID + '_backup').set(payload).catch(() => {});
       updateSyncStatus(true);
-      showToast('Inventory saved & synced to global cloud!');
+      showToast('Inventory saved & synced to cloud!');
     } else {
-      // Check if we are running on a static live server (GitHub Pages)
-      const isStaticHost = window.location.hostname.endsWith('github.io');
+      const isStaticHost = window.location.hostname.endsWith('github.io') || window.location.hostname.includes('vercel.app');
       if (isStaticHost) {
-        showToast('Please paste your Firebase Config in the Backup settings to sync your phone.', 'info');
-        updateSyncStatus(false);
+        showToast('Saved locally in persistent storage.', 'info');
+        updateSyncStatus(true);
         return;
       }
 
@@ -597,20 +1174,14 @@ async function syncWithServer() {
       });
       
       if (!response.ok) throw new Error('Post to server failed');
-      
       updateSyncStatus(true);
       showToast('Inventory saved & synced to all devices!');
     }
   } catch (err) {
     console.error('Server sync error:', err);
     updateSyncStatus(false);
-    if (state.useFirebase) {
-      showToast(`Cloud Sync Error: ${err.message || 'Check database settings'}`, 'error');
-    } else {
-      showToast('Failed to save to computer server. Saved locally.', 'error');
-    }
+    showToast(`Sync Notice: ${err.message || 'Saved locally'}`, 'error');
   } finally {
-    // End spinning animation
     if (activeIcon) activeIcon.classList.remove('spin');
     syncBtn.disabled = false;
     if (syncText) syncText.textContent = 'Save & Sync';
@@ -625,18 +1196,13 @@ function updateSyncStatus(isSynced) {
   if (isSynced) {
     syncBtn.classList.remove('btn-secondary');
     syncBtn.classList.add('btn-primary');
-    if (state.useFirebase) {
-      syncBtn.title = 'Saved & Synced with Global Cloud';
-    } else {
-      syncBtn.title = 'Saved & Synced with Computer';
-    }
+    syncBtn.title = 'Saved & Synced with Global Cloud';
     if (connectedIcon) connectedIcon.classList.remove('hidden');
     if (disconnectedIcon) disconnectedIcon.classList.add('hidden');
   } else {
-    // Show secondary styling (warning color) to indicate local-only
     syncBtn.classList.remove('btn-primary');
     syncBtn.classList.add('btn-secondary');
-    syncBtn.title = 'Offline Mode (Saved on this device only)';
+    syncBtn.title = 'Saved in Persistent Storage';
     if (connectedIcon) connectedIcon.classList.add('hidden');
     if (disconnectedIcon) disconnectedIcon.classList.remove('hidden');
   }
@@ -1777,6 +2343,13 @@ function handleCsvImport(content) {
 clearAllDataBtn.addEventListener('click', () => {
   triggerHaptic(40);
   if (confirm('WARNING: Are you sure you want to delete ALL stock items? This cannot be undone.')) {
+    // Save emergency safety snapshot before clearing
+    idbSet('backup_before_clear', {
+      stocks: [...state.stocks],
+      mainCategories: [...state.mainCategories],
+      clearedAt: new Date().toISOString()
+    });
+    state.userExplicitlyClearedAll = true;
     state.stocks = [];
     saveState();
     backupModal.classList.add('hidden');
@@ -1784,6 +2357,15 @@ clearAllDataBtn.addEventListener('click', () => {
     showToast('All stock items cleared.', 'info');
   }
 });
+
+// Restore from Cloud button in Backup modal
+if (restoreFromCloudBtn) {
+  restoreFromCloudBtn.addEventListener('click', async () => {
+    triggerHaptic(20);
+    showToast('Fetching latest cloud backup...', 'info');
+    await loadFromServer(true);
+  });
+}
 
 // Firebase configuration management
 saveFirebaseConfigBtn.addEventListener('click', async () => {
@@ -1795,23 +2377,15 @@ saveFirebaseConfigBtn.addEventListener('click', async () => {
   }
   
   try {
-    // Validate JSON structure
     const config = JSON.parse(configText);
     if (!config.apiKey || !config.projectId) {
       throw new Error('Config missing apiKey or projectId');
     }
     
-    // Save to local storage
     localStorage.setItem('firebaseConfig', configText);
     showToast('Firebase configuration saved!');
-    
-    // Initialize
     initFirebase();
-    
-    // Immediate sync
-    await loadFromServer();
-    
-    // Close backup modal
+    await loadFromServer(true);
     backupModal.classList.add('hidden');
     backupModal.setAttribute('aria-hidden', 'true');
   } catch (err) {
@@ -1831,19 +2405,18 @@ clearFirebaseConfigBtn.addEventListener('click', () => {
   state.db = null;
   firebaseConfigInput.value = '';
   updateSyncStatus(false);
-  showToast('Firebase Cloud Sync disabled. Switched back to local mode.', 'info');
-  
-  // Close backup modal
+  showToast('Firebase Cloud Sync disabled. Switched to persistent local mode.', 'info');
   backupModal.classList.add('hidden');
   backupModal.setAttribute('aria-hidden', 'true');
 });
 
 // --- App Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
+  requestPersistentStorage();
   initTheme();
-  loadState(); // load local cache first
+  loadState(); // load local cache and persistent IndexedDB
   initFirebase(); // initialize Firebase if config is present
-  saveState(false); // render local cache immediately
+  saveState(false); // render immediately
   
   // Fetch latest from server
   loadFromServer();
